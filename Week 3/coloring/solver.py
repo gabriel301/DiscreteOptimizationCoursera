@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import gc
 import random
+import math
 
 class Node:
     def __init__(self,number = -1,colors = None):
@@ -120,11 +121,14 @@ def TabuSearch(graph,colors,iterations=5000,alpha = 15):
     colorsUsed = GetInitialSolution(graph,colors)
     graph.colorsUsed = colorsUsed
     currentsolutionColors = len(graph.colorsUsed)
+    
     currentSolution = []
     for i in range(0,graph.length):
         currentSolution.append(graph.nodes[i].color)
     currentSolutionScore = Evaluate(graph)
+    alpha = int(2.15*math.sqrt(graph.length))
     while True:
+        
         graph = RemoveColor(graph)
         newSolution = GetSolution(graph,iterations,alpha)
         # print(Evaluate(newSolution))
@@ -146,6 +150,7 @@ def GetSolution (graph,iterations,alpha):
     for i in range(0,iterations):
         nodeNumber,color = GetNextBrokenConstraint(graph,tabuList)
         if(color == -1):
+            #print("END SOLUTION -1")
             break
         AssingColor(graph,nodeNumber, color,False) 
         if(graph.brokenConstraints == 0):
@@ -173,7 +178,7 @@ def GetNextBrokenConstraint(graph,tabuList):
             continue
 
         countAfter = CheckConstraintCount(graph.nodes[nodeNumber],color)
-        if count >= (countAfter - countBefore):
+        if count > (countAfter - countBefore):
             currentColor = color
             currentNodeNumber = nodeNumber
             count = (countAfter - countBefore)
@@ -252,10 +257,10 @@ def GetUnassignedNodes(graph):
 
 def GetCurrentNode(graph):
     result = sorted(graph, key=lambda x: x.degree, reverse=True)
-    final = sorted(result, key=lambda x: (len(x.adjacentColors)), reverse=True)
-    for i in range(0,len(final)):
-        if final[i].color == -1:
-            return final[i]
+    #final = sorted(result, key=lambda x: (len(x.adjacentColors)), reverse=True)
+    for i in range(0,len(result)):
+        if result[i].color == -1:
+            return result[i]
     return None
 
 
