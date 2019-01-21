@@ -21,8 +21,9 @@ class Graph:
         for i in range(0,num_nodes):
             self.nodes.append(Node(i,set(range(0,num_nodes))))
         self.length = num_nodes
-        self.colorsUsed =  set() #Dictionary that stores the colors used in the graph (as keys), how many nodes have each color and the total degree of color (sum of degrees of all nodes with that color)
+        self.colorsUsed =  set()
         self.brokenConstraints = 0
+        self.edge_count = 0
     def __iter__(self):
         return self
     def __next__(self):
@@ -39,42 +40,50 @@ class Graph:
         del self
         gc.collect()
 
+    def GetDensity(self):
+        return 2*self.edge_count/self.length*(self.length-1)
+
 class TabuList:
     def __init__(self): 
         self.elements = []
         self.threshhold = []
+        self.violations = []
         self.length = 0
 
     def clear(self):
-        # print("---Tabu Clear---")
         for i in range(0,len(self.threshhold)):
-            # print("Element/Threshhold")
-            # print((self.elements[i],self.threshhold[i]))
             if(self.threshhold[i] > 0):
                 self.threshhold[i] = self.threshhold[i] - 1
                 if(self.threshhold[i] == 0):
                     self.elements[i] = None
+                    self.violations[i] = -1
                     self.length = self.length - 1
-        # print("Length")
-        # print(self.length)
 
-    def add(self,element,threshhold):
+    def add(self,element,violations,threshhold):
         added = False
-        # print("---Tabu ADD---")
-        # print("Element/Threshhold")
-        #print((element,threshhold))
         for i in range(0,len(self.elements)):
             if( self.elements[i] is None):
                 self.elements[i] = element
                 self.threshhold[i] = threshhold
+                self.violations[i] = violations
                 added = True
                 break
         if added == False:
             self.elements.append(element)
             self.threshhold.append(threshhold)
+            self.violations.append(violations)
         self.length = self.length + 1
-        # print("Length")
-        # print(self.length)
+    def Update(self,element,violations):
+        elementIndex = self.elements.index(element)
+        if(self.violations[elementIndex] > violations):
+            self.elements[elementIndex] = None
+            self.violations[elementIndex] = -1
+            self.threshhold[elementIndex] = 0
+            self.length = self.length - 1
+            return True
+        else:
+            return False
+
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -96,15 +105,11 @@ def solve_it(input_data):
         graph.nodes[int(parts[0])].degree = graph.nodes[int(parts[0])].degree + 1
         graph.nodes[int(parts[1])].degree = graph.nodes[int(parts[1])].degree + 1
 
-
+    graph.edge_count = edge_count
     
     colors = set(range(0, node_count))
 
-    # colorsUsed = GetInitialSolution(graph,colors)
-    # graph.colorsUsed = colorsUsed
     solutionColors, solution = TabuSearch(graph,colors)
-
-
 
     # prepare the solution in the specified output format
     output_data = str(solutionColors) + ' ' + str(0) + '\n'
@@ -117,7 +122,7 @@ def solve_it(input_data):
     return output_data
 
 
-def TabuSearch(graph,colors,iterations=5000,alpha = 15):
+def TabuSearch(graph,colors,iterations=5500,alpha = 1):
     colorsUsed = GetInitialSolution(graph,colors)
     graph.colorsUsed = colorsUsed
     currentsolutionColors = len(graph.colorsUsed)
@@ -126,13 +131,10 @@ def TabuSearch(graph,colors,iterations=5000,alpha = 15):
     for i in range(0,graph.length):
         currentSolution.append(graph.nodes[i].color)
     currentSolutionScore = Evaluate(graph)
-    alpha = int(2.15*math.sqrt(graph.length))
-    while True:
-        
+    alpha = int(1.25*math.sqrt(graph.length))
+    while True:    
         graph = RemoveColor(graph)
         newSolution = GetSolution(graph,iterations,alpha)
-        # print(Evaluate(newSolution))
-        # print(graph.brokenConstraints)
         if (currentSolutionScore > Evaluate(newSolution)):
             currentsolutionColors = len(newSolution.colorsUsed)
             currentSolution = []
@@ -148,16 +150,17 @@ def TabuSearch(graph,colors,iterations=5000,alpha = 15):
 def GetSolution (graph,iterations,alpha):
     tabuList = TabuList()
     for i in range(0,iterations):
-        nodeNumber,color = GetNextBrokenConstraint(graph,tabuList)
+        nodeNumber,color,violations = GetNextBrokenConstraint(graph,tabuList)
         if(color == -1):
-            #print("END SOLUTION -1")
             break
         AssingColor(graph,nodeNumber, color,False) 
         if(graph.brokenConstraints == 0):
-            #print("END SOLUTION")
             break
         tabuList.clear()
-        tabuList.add((nodeNumber,color),alpha*graph.brokenConstraints)
+        penalty = alpha*int(graph.brokenConstraints + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
+        tabuList.add((nodeNumber,color),violations,penalty)
+        # print("Penalty")
+        # print(penalty)
         # print("Tabu List/ Violations")
         # print( (tabuList.length,graph.brokenConstraints))
     return graph
@@ -186,7 +189,7 @@ def GetNextBrokenConstraint(graph,tabuList):
     #         print((nodeNumber,color,count))
     # print("CurrentNode/CurrentColor")
     # print((currentNodeNumber,currentColor))
-    return currentNodeNumber,currentColor
+    return currentNodeNumber,currentColor,count
 
 #Get the assignment that violates the less number of constraints
 def GetNextAssignment(node,currentViolations = None,tabuList = None):
@@ -198,10 +201,11 @@ def GetNextAssignment(node,currentViolations = None,tabuList = None):
         tabuList = TabuList()
 
     for color in node.ColorsDomain:
-        if((node.number,color) in tabuList.elements):
-            continue
-
         violationCount = CheckConstraintCount(node,color)
+
+        if((node.number,color) in tabuList.elements):
+            if tabuList.Update((node.number,color),violationCount) == False:
+                continue
 
         if currentViolations >= violationCount and color != node.color:
                 currentViolations = violationCount
@@ -246,7 +250,7 @@ def AssingColor(graph,nodeNumber,color,removeFromDomain = True):
     graph.brokenConstraints += (constraintsAfterAssign - constraintsBeforeAssign)
 
 def GetExplorationList(graph):
-    return sorted(graph, key=lambda x: x.degree, reverse=True)
+    return graph.nodes
     
 def GetUnassignedNodes(graph):
     nodes = []
@@ -256,11 +260,11 @@ def GetUnassignedNodes(graph):
     return nodes
 
 def GetCurrentNode(graph):
-    result = sorted(graph, key=lambda x: x.degree, reverse=True)
+    #result = sorted(graph, key=lambda x: x.degree, reverse=True)
     #final = sorted(result, key=lambda x: (len(x.adjacentColors)), reverse=True)
-    for i in range(0,len(result)):
-        if result[i].color == -1:
-            return result[i]
+    for i in range(0,graph.length):
+        if graph.nodes[i].color == -1:
+            return graph.nodes[i]
     return None
 
 
