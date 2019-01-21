@@ -1,5 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
+    ##################################################
+    # Graph Coloring - Gabriel Augusto - 21/01/2019  #
+    # gabriel301@gmail.com                           #
+    # Approach: Tabu Search + Random Restarts        #
+    # This solution can get the full score           #
+    ##################################################
+
 import gc
 import random
 import math
@@ -15,7 +23,7 @@ class Node:
         self.ColorsDomain = colors
         self.id = id #Node ID
         
-#Definition of Clas Grapsh
+#Definition of Graph Class
 class Graph:
     def __init__ (self,num_nodes):
         self.idx = 0
@@ -26,7 +34,7 @@ class Graph:
 
         self.length = num_nodes
         self.colorsUsed =  set()
-        self.brokenConstraints = 0
+        self.violatedConstraints = 0
         self.edge_count = 0
 
     def GetDensity(self):
@@ -37,8 +45,8 @@ class TabuList:
     def __init__(self): 
         self.elements = defaultdict(list) 
 
-    #Remove from Tabu elements that has no restriction penalty
-    def clear(self):
+    #Decrease penalties and remove from Tabu elements that has no restriction penalty
+    def decreasePenalties(self):
         toBeDeleted = []
         for key in self.elements.keys():
             self.elements[key][0] -=1
@@ -65,6 +73,9 @@ class TabuList:
 
     def Length(self):
         return len(self.elements)
+
+    def Clear(self):
+        self.elements.clear()
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
 
@@ -104,8 +115,8 @@ def solve_it(input_data):
     return output_data
 
 
-def TabuSearch(graph,colors,iterations=1000,alpha = 1):
-    
+def TabuSearch(graph,colors,iterations=50000):
+    print("Instance: {}".format(graph.length))
     #Get an initial Greedy Solution
     colorsUsed = GetInitialSolution(graph,colors)
     graph.colorsUsed = colorsUsed
@@ -115,7 +126,7 @@ def TabuSearch(graph,colors,iterations=1000,alpha = 1):
     currentSolution = []
     for i in range(0,graph.length):
         currentSolution.append(graph.nodes[i].color)
-    currentSolutionScore = Evaluate(graph)
+    currentObjectiveFunction = Evaluate(graph)
 
     #Parameter to penalize assignments to be inserted into the tabu list
     alpha = int(1.25*math.sqrt(graph.length))
@@ -126,12 +137,12 @@ def TabuSearch(graph,colors,iterations=1000,alpha = 1):
         newSolution = GetSolution(graph,iterations,alpha)
         #In case the solution found is better than current solution, make the better solution as current
         #Otherwise, terminate the execution
-        if (currentSolutionScore > Evaluate(newSolution)):
+        if (currentObjectiveFunction > Evaluate(newSolution)):
             currentsolutionColors = len(newSolution.colorsUsed)
             currentSolution = []
             for i in range(0,newSolution.length):
                 currentSolution.append(newSolution.nodes[i].color)
-            currentSolutionScore = Evaluate(newSolution)
+            currentObjectiveFunction = Evaluate(newSolution)
         else:
             break
 
@@ -140,40 +151,86 @@ def TabuSearch(graph,colors,iterations=1000,alpha = 1):
 
 def GetSolution (graph,iterations,alpha):
     tabuList = TabuList()
-    
-    for i in range(0,iterations):
+
+    #Stores the frequency of each value of the objective function
+    frequencyValues = {}
+
+    #Paramter that that compound the frequency Threshold. It represents the percentage of iterations
+    epsilon = 0.15
+
+    restartsLimit = 5
+    restartsCount = 0
+    i = 0
+    while i < iterations:
+
+        if restartsLimit < restartsCount:
+            break
+
         #Try to find the assigment that violates the least number of contraints
         nodeId,color,violations = GetNextBetterAssigment(graph,tabuList)
-        #In case of no assigment is found, terminate (unfeasible solution)
+        #In case of no assignment is found (infeasible solution), restart
         if(color == -1):
-            break
+            AssignRandomColors(graph)
+            frequencyValues.clear()
+            tabuList.Clear()
+            restartsCount +=1
+            i = 0
+            print("Restarting...")
         
         #Make the new color assigmnet
         AssingColor(graph,nodeId, color,False) 
 
         #In case the solution does not violate any constraint, terminate the execution (feasible solution found)
-        if(graph.brokenConstraints == 0):
+        if(graph.violatedConstraints == 0):
             break
         #Remove nodes from the tabu and updates the penalty count (decrease one in each iteration)
-        tabuList.clear()
+        tabuList.decreasePenalties()
         
         #Dynamic penalty for each assigment
         #Assigments that violates more constraints have a higher penalty in tabu list
         #The penalty also counts the graph density and the number of colors available to be assigned
-        penalty = alpha*int(graph.brokenConstraints + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
+        penalty = alpha*int(graph.violatedConstraints + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
         
         #Add the new assignment on Tabu
         tabuList.add((nodeId,color),violations,penalty)
-    #     print("Current Objective")
-    #     print(Evaluate(graph))
 
-    # print("Graph Length")
-    # print(graph.length)
-    # print("Tabu Length")
-    # print(tabuList.Length())
-    # print("Current Objective")
-    # print(Evaluate(graph))
+        objectiveFunctionValue = Evaluate(graph)
+
+        #Updates the frequency of the value of the obj function
+        if objectiveFunctionValue in frequencyValues.keys():
+            frequencyValues[objectiveFunctionValue] += 1
+        else:
+            frequencyValues[objectiveFunctionValue] = 1
+
+        #In case the frequency of this objective is greater or equal than the threshold
+        #Make a perturbation - try to escape the local optima and restart
+        if(frequencyValues[objectiveFunctionValue] >= epsilon*iterations):
+            AssignRandomColors(graph)
+            frequencyValues.clear()
+            tabuList.Clear()
+            restartsCount +=1
+            i = 0
+            print("Restarting...")
+
+        i+=1
+    print("Instance: {} - Objective Function {}".format(graph.length,Evaluate(graph)))
     return graph
+
+#Assign random colors for random nodes
+def AssignRandomColors(graph):
+    #Get a random number of nodes to be change (at most half of the nodes)
+    nodesCount = random.randint(int(graph.length/2),int(3*graph.length/4))
+    nodesChanged = set()
+    print("Instance: {} - Perturbation: {} nodes".format(graph.length,nodesCount))
+    for i in range(0,nodesCount):    
+        nodeId = random.randint(0,graph.length-1)
+        while nodeId not in nodesChanged:
+            nodeId = random.randint(0,graph.length-1)
+            if(nodeId not in nodesChanged):
+                nodesChanged.add(nodeId)
+        
+        newColor = random.randint(0,len(graph.colorsUsed)-1)
+        AssingColor(graph,nodeId,newColor,False)
 
 #Get the assigment that violates less constraints in the graph
 def GetNextBetterAssigment(graph,tabuList):
@@ -240,7 +297,7 @@ def GetNextAssignment(node,currentViolations = None,tabuList = None):
 #If the solution break any constraint, it is penalized with 1.01 for each constraint broken
 #Thus, any unfeasible solution will be always worse then a feasible solution with the same or fewer number of colors
 def Evaluate(graph):
-    return len(graph.colorsUsed) + graph.brokenConstraints * 1.01
+    return len(graph.colorsUsed) + graph.violatedConstraints * 1.01
 
 #Remove the color with the least id of nodes, least degree and greatest color id
 def RemoveColor(graph):
@@ -272,7 +329,7 @@ def AssingColor(graph,nodeId,color,removeFromDomain = True):
     graph.colorsUsed.add(color)
     PropagateConstraint(graph.nodes[nodeId],color,removeFromDomain)
     constraintsAfterAssign = GetConstraintViolationsCount(graph.nodes[nodeId],color)
-    graph.brokenConstraints += (constraintsAfterAssign - constraintsBeforeAssign)
+    graph.violatedConstraints += (constraintsAfterAssign - constraintsBeforeAssign)
 
 def RemoveColorFromNeighbors(node,color):
     for i in range(0,len(node.adjacentList)):
