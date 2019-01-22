@@ -155,38 +155,17 @@ def TabuSearch(graph,colors,iterations=100000):
 def GetSolution (graph,iterations,alpha):
     tabuList = TabuList()
 
-    #Stores the frequency of each value of the objective function
-    frequencyValues = {}
-
-    #Paramter that that compound the frequency Threshold. It represents the percentage of iterations
-    epsilon = 0.175
-
-    restartsLimit = 10
-    restartsCount = 0
-    i = 0
-    while i < iterations:
-
-        if restartsLimit < restartsCount:
-            break
-        #Try to find the assigment that violates the least number of contraints
-        nodeId,color,violations = GetNextBetterAssigment(graph,tabuList)
-        #In case of no assignment is found (infeasible solution), restart
-        if(color == -1):
-            print("=========================================================")
-            print("Instance: {}".format(graph.length))
-            print("Minimum objective function value: {}".format(min(frequencyValues.keys())))
-            print("Current Color Domain: {}".format(len(graph.colorsUsed)))
-            print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
-            print("Restarting...")
-            AssignRandomColors(graph)
-            frequencyValues.clear()
-            tabuList.Clear()
-            restartsCount +=1
-            i = 0
-            print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
-            print("Current Color Domain: {}".format(len(graph.colorsUsed)))
-            print("=========================================================")
-        else:   
+    #Increase this parameter if you want to enable random restarts
+    restartsLimit = 1
+    for i in range(0,restartsLimit):
+        i = 0
+        while i < iterations:
+            #Try to find the assigment that violates the least number of contraints
+            nodeId,color,violations = GetNextBetterAssigment(graph,tabuList)
+            #In case of no assignment is found (infeasible solution), restart
+            if(color == -1):
+                break
+            
             #Make the new color assigmnet
             AssingColor(graph,nodeId, color,False)
             #In case the solution does not violate any constraint, terminate the execution (feasible solution found)
@@ -199,37 +178,27 @@ def GetSolution (graph,iterations,alpha):
             #Dynamic penalty for each assigment
             #Assignments that violates more constraints have a higher penalty in tabu list
             #The penalty also counts the graph density and the number of colors available to be assigned
-            penalty = alpha*int(graph.violatedConstraints + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
-            
+            #penalty = alpha*int(graph.violatedConstraints + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
+            penalty = alpha*int(graph.violatedConstraints + pow(graph.violatedConstraints,0.9) + math.sqrt(graph.GetDensity())/len(graph.colorsUsed))
             #Add the new assignment on Tabu
             tabuList.add((nodeId,color),violations,penalty)
+            i+=1
+        
+        print("END - Instance: {} - Objective Function: {}".format(graph.length,Evaluate(graph)))
 
-            objectiveFunctionValue = Evaluate(graph)
-            #Updates the frequency of the value of the objective function
-            if objectiveFunctionValue in frequencyValues.keys():
-                frequencyValues[objectiveFunctionValue] += 1
-            else:
-                frequencyValues[objectiveFunctionValue] = 1
-            #In case the frequency of this objective is greater or equal than the threshold
-            #Make a perturbation - try to escape the local optima and restart
-            if(frequencyValues[objectiveFunctionValue] >= int(round(epsilon*iterations))):
-                print("=========================================================")
-                print("Instance: {}".format(graph.length))
-                print("Minimum objective function value: {}".format(min(frequencyValues.keys())))
-                print("Current Color Domain: {}".format(len(graph.colorsUsed)))
-                print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
-                print("Restarting...")
-                AssignRandomColors(graph)
-                frequencyValues.clear()
-                tabuList.Clear()
-                restartsCount +=1
-                i = 0         
-                print("Current Color Domain: {}".format(len(graph.colorsUsed)))
-                print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
-                print("=========================================================")
-            else:
-                i+=1
-    print("END - Instance: {} - Objective Function: {}".format(graph.length,Evaluate(graph)))
+        if(graph.violatedConstraints == 0):
+            break
+            
+        print("=========================================================")
+        print("Instance: {}".format(graph.length))
+        print("Current Color Domain: {}".format(len(graph.colorsUsed)))
+        print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
+        print("Restarting...")
+        AssignRandomColors(graph)
+        tabuList.Clear()
+        print("Violated Constraints: {} - Current Objective Function: {} ".format(graph.violatedConstraints,Evaluate(graph)))
+        print("Current Color Domain: {}".format(len(graph.colorsUsed)))
+        print("=========================================================")
     return graph
 
 #Assign random colors for random nodes
