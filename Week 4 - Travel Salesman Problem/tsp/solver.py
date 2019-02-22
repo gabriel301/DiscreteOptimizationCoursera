@@ -91,6 +91,30 @@ class Graph:
         del self.tourEdges[id]
         gc.collect()
 
+    def getFirstTourElement(self):
+        return next(iter(self.tourNodes))
+
+    def getLastTourElement(self):
+        return next(reversed(self.tourNodes))
+
+    def getEdgeFromPool(self,nodeId1,nodeId2):
+        if (nodeId1 < nodeId2):
+            key = str(nodeId1)+"-"+str(nodeId2)
+            if key in self.edgesPool:
+                return self.edgesPool[key]
+            else:
+                return None
+        else:
+            key = str(nodeId2)+"-"+str(nodeId1)
+            if key in self.edgesPool:
+                return self.edgesPool[key]
+            else:
+                return None
+    def rearrangeTourNodes(self,newRoute):
+        ordered = OrderedDict((k, self.tourNodes[k]) for k in newRoute)
+        self.tourNodes = ordered
+        gc.collect()
+
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
 
@@ -108,8 +132,8 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Guided Fast Local Search (GFLS)
-    #solutionSequence,objValue = GuidedLocalSearch(graph)
-    solutionSequence,objValue = GetInitialSolution(graph)
+    solutionSequence,objValue = GuidedLocalSearch(graph,100,0.5)
+    #solutionSequence,objValue = GetInitialSolution(graph)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % objValue + ' ' + str(0) + '\n'
@@ -123,29 +147,29 @@ def solve_it(input_data):
 #For symmetry breaking, only the egdes a -> b, where a < b, are created.
 #However, the edge is referenced by both nodes
 def GetInitialSolution(graph):
-    print("=========================================================")
-    print("Instance: {} - Initial Solution Start".format(graph.length))
-    input("Press Enter to Continue")
+    #print("=========================================================")
+    #print("Instance: {} - Initial Solution Start".format(graph.length))
+    ##input("Press Enter to Continue")
     for index in range(0, graph.length-1):
         edge = Edge(graph.nodes[index],graph.nodes[index+1]) 
         graph.addEgdeinTour(edge)
         graph.addNodeinTour(graph.nodes[index])
         graph.addNodeinTour(graph.nodes[index+1])
-        print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
-        print("Tour Length: {}".format(graph.tourLength))
+        #print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
+        #print("Tour Length: {}".format(graph.tourLength))
 
     edge = Edge(graph.nodes[0],graph.nodes[-1])
     graph.addEgdeinTour(edge)
     graph.addNodeinTour(graph.nodes[-1])
     graph.addNodeinTour(graph.nodes[0])
-    print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
-    print("Tour Length: {}".format(graph.tourLength))
-    print("Instance: {} - Initial Solution End".format(graph.length))
-    print("=========================================================")
+    # print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
+    # print("Tour Length: {}".format(graph.tourLength))
+    # print("Instance: {} - Initial Solution End".format(graph.length))
+    # print("=========================================================")
     return graph.tourNodes.keys(), graph.tourLength
 
 #1/8 <= beta <= 1/2
-def GuidedLocalSearch(graph,iterations = 10000,beta = 0.5):
+def GuidedLocalSearch(graph,iterations = 1000,beta = 0.5):
     print("=========================================================")
     print("Instance: {} - Start Guided Local Search".format(graph.length))
     currentSolutionSequence, currentObjFunction = GetInitialSolution(graph) 
@@ -158,13 +182,14 @@ def GuidedLocalSearch(graph,iterations = 10000,beta = 0.5):
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
-            print("Current Objective Value: {}".format(currentObjFunction))
-        else:
-            break       
+            print("GLS New Current Objective Value: {}".format(currentObjFunction))
+            #input("Press Enter...")
+        # else:
+        #     break       
 
         maxUtilValue = 0
-        for edge in graph.tourEdges:
-            aux = GetUtilValue(edge)
+        for key in graph.tourEdges.keys():
+            aux = GetUtilValue(graph.tourEdges[key])
             if aux > maxUtilValue:
                 maxUtilValue = aux
 
@@ -177,10 +202,18 @@ def GuidedLocalSearch(graph,iterations = 10000,beta = 0.5):
 def Swap2Opt(graph,node,alpha=1):
     activatedNodes = {}
     currentObjValue = GetAlgumentedObjectiveFunctionValue(graph,alpha)
-    for edge in node.adjacentList:
-        removedEdges, addedEdges = GetMove(graph,node,edge)
+    for key in node.adjacentList.keys():
+        print("2-OPT: CURRENT EDGE: {}".format(key))
+        newRoute, removedEdges, addedEdges = GetMove(graph,node,node.adjacentList[key])
+        # skip = False
+        # for edge in addedEdges:
+        #     if (edge.id in graph.tourEdges):
+        #         skip = True
+        #         break
+        # if skip:
+        #     continue
         moveCost = EvaluateMovePenalized(graph,removedEdges,addedEdges,alpha)
-        #TODO reorder the sequence
+
         if(moveCost < currentObjValue):
             currentObjValue = moveCost
             for oldEdge in removedEdges:
@@ -189,47 +222,92 @@ def Swap2Opt(graph,node,alpha=1):
             for newEdge in addedEdges:
                 activatedNodes[newEdge.node1.id] = newEdge.node1
                 activatedNodes[newEdge.node2.id] = newEdge.node2
-                newEdge.activatedNodes()
+                newEdge.ActivateNodes()
                 graph.addEgdeinTour(newEdge)
+
+            graph.rearrangeTourNodes(newRoute)
+            return activatedNodes,currentObjValue
 
     return activatedNodes,currentObjValue
 
 #TODO Realize what subsequence must be reversed and find what edges will be added/removed
 #Check whether the edge exists in graph.edgesPool before creation to add (locate by id)
 def GetMove(graph,node,edge):
+    print("=========================================================")
+    print("Instance: {} - Start Get Move".format(graph.length))
     removedEdges = []
     addedEdges = []
+    #Remove the adjacent edges
     removedEdges.append(edge)
-    cutPoint = edge.node1.id if edge.node1.id != node.id else edge.node2.id
     tourNodes = tuple(graph.tourNodes)
-    cutPointPos = tourNodes.index(cutPoint)
+    firstElementId = graph.getFirstTourElement()
+    lastElementId = graph.getLastTourElement()
+    circleEdge = None
+    #Remove the circular edge
+    if(firstElementId < lastElementId):
+        circleEdge = graph.tourEdges[str(firstElementId)+"-"+str(lastElementId)]
+    else:
+         circleEdge = graph.tourEdges[str(lastElementId)+"-"+str(firstElementId)]
+    removedEdges.append(circleEdge)
+
+    adjacentNode = edge.node1 if edge.node1.id != node.id else edge.node2
+    
+    #Reverse the list
+    adjacentNodePos = tourNodes.index(adjacentNode.id)
     currentNodePos = tourNodes.index(node.id)
+    route = list(graph.tourNodes.keys())
+    newRoute = []
+    if(currentNodePos < adjacentNodePos):
+        newRoute.extend(route[0:currentNodePos+1])
+        newRoute.extend(route[len(route)-1:currentNodePos:-1])
+    else:
+        newRoute.extend(route[0:adjacentNodePos+1])
+        newRoute.extend(route[len(route)-1:adjacentNodePos:-1])    
+    #Edges to Add
+    #Adjacent edge
+    adjacentEdge = graph.getEdgeFromPool(newRoute[currentNodePos],newRoute[adjacentNodePos])
+    if(adjacentEdge is None):
+        adjacentEdge = Edge(graph.nodes[newRoute[currentNodePos]],graph.nodes[newRoute[adjacentNodePos]])
+    #Circular Edge
+    circularEdge = graph.getEdgeFromPool(newRoute[0],newRoute[len(newRoute)-1])
+    if(circularEdge is None):
+        circularEdge = Edge(graph.nodes[newRoute[0]],graph.nodes[newRoute[len(newRoute)-1]])
+    addedEdges.append(adjacentEdge)
+    addedEdges.append(circularEdge)
 
-    #if cutPointPos >= (len(tourNodes)-1)/2:
-
-    return removedEdges,addedEdges
+    print("Current Route: {}".format(list(graph.tourNodes.keys())))
+    print("New Route: {}".format(newRoute))
+    print("Instance: {} - End Get Move".format(graph.length))
+    print("=========================================================")
+    return newRoute,removedEdges,addedEdges
 
 def FastLocalSearch(graph,alpha):
-    print("=========================================================")
-    print("Instance: {} - Start Fast Local Search".format(graph.length))
+    #print("=========================================================")
+    #print("Instance: {} - Start Fast Local Search".format(graph.length))
     currentSolutionSequence = graph.tourNodes.keys()
     currentAugmentedObj = GetAlgumentedObjectiveFunctionValue(graph,alpha)
+    currentObjFunction = graph.tourLength
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
-    print("Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
+    #print("Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
     while len(activeNeighbourhoods.keys()) > 0:
-        key = activeNeighbourhoods.keys()[0]
-        node = activeNeighbourhoods.get(key)
+        key = list(activeNeighbourhoods.keys())[0]
+        node = activeNeighbourhoods[key]
         del activeNeighbourhoods[key]
         node.active = False
+        # if node.id == graph.getFirstTourElement() or node.id == graph.getLastTourElement():
+        #     continue
+         
         activatedNodes, newAugmentedObjValue = Swap2Opt(graph,node,alpha)
         if(currentAugmentedObj > newAugmentedObjValue):
             currentAugmentedObj = newAugmentedObjValue
             currentSolutionSequence = graph.tourNodes.keys()
+            currentObjFunction = graph.tourLength
             for key in activatedNodes.keys():
                 activeNeighbourhoods[key] = activatedNodes[key]
-            print("Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
-    print("Instance: {} -  End Fast Local Search".format(graph.length))
-    print("=========================================================")
+            #print("FLS - New Current Objective Value: {} ".format(currentObjFunction))
+            #print("FLS - New Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
+    #print("Instance: {} -  End Fast Local Search".format(graph.length))
+    #print("=========================================================")
     return currentSolutionSequence, GetObjectiveFunctionValue(graph)
 
 
@@ -242,27 +320,27 @@ def GetActivateNeighbourhoods(graph):
 
 #Penalizes the edges in the solution with the maximum utility value and activated the nodes (sub-neighbourhoods) at their ends
 def PenalizeFeatures(graph, maxUtil):
-    for edge in graph.tourEdges:
-        if edge.util == maxUtil:
-            edge.penalty += 1
-            edge.activeNeighbourhoods()
+    for key in graph.tourEdges.keys():
+        if graph.tourEdges[key].util == maxUtil:
+            graph.tourEdges[key].penalty += 1
+            graph.tourEdges[key].ActivateNodes()
 
 
 #Calculate the Penalty for each edge presented in the local optima solution
 def GetUtilValue(edge):
-    edge.util = edge.getLength()/(1+edge.penalty)
+    edge.util = edge.GetLength()/(1+edge.penalty)
     return edge.util
 
 def GetObjectiveFunctionValue(graph):
     length = 0
-    for edge in graph.tourEdges:
-        length += edge.getLength()
+    for key in graph.tourEdges.keys():
+        length += graph.tourEdges[key].GetLength()
     return length
 
 def GetAlgumentedObjectiveFunctionValue(graph,alpha):
     length = 0
-    for edge in graph.tourEdges:
-        length += (edge.getLength() + (alpha*edge.penalty))
+    for key in graph.tourEdges.keys():
+        length += (graph.tourEdges[key].GetLength() + (alpha*graph.tourEdges[key].penalty))
     return length
 
 #Evaluation of the move using Augmented Objective Function
@@ -272,10 +350,12 @@ def EvaluateMovePenalized(graph,removedEdges,addedEdges,alpha=1):
     removed = 0
     added = 0
     for edge in removedEdges:
-        removed = removed + edge.getLength() + (alpha*edge.penalty)
+        removed = removed + edge.GetLength() + (alpha*edge.penalty)
+        print("Edge to be Removed: {} ".format(edge.id))
     print("Cost to be Removed: {} ".format(removed))
     for edge in addedEdges:
-        added = added + edge.getLength() + (alpha*edge.penalty)
+        added = added + edge.GetLength() + (alpha*edge.penalty)
+        print("Edge to be Added: {} ".format(edge.id))
     print("Cost to be Added: {} ".format(added))
     cost = graph.tourLength - removed + added
     print("Total Cost: {} ".format(cost))
