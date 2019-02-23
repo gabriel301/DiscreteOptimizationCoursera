@@ -160,7 +160,6 @@ def solve_it(input_data):
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph)
-    #solutionSequence,objValue = GetInitialSolution(graph)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % objValue + ' ' + str(0) + '\n'
@@ -192,13 +191,60 @@ def GetInitialSolution(graph):
     # print("Tour Length: {}".format(graph.tourLength))
     # print("Instance: {} - Initial Solution End".format(graph.length))
     # print("=========================================================")
-    return graph.tourNodes,GetObjectiveFunctionValue(graph)
+    return graph.GetTourIds(),GetObjectiveFunctionValue(graph)
+
+def GetNearestNeighbourhoodSolution(graph):
+    print("=========================================================")
+    print("Instance: {} - Nearest Neighbour Solution Start".format(graph.length))
+    ##input("Press Enter to Continue")
+    activeNodes = graph.length
+    currentNode = graph.nodes[0]
+    while activeNodes > 0:
+        bestEdge = None
+        currentNode.active = False
+        #print("Current Node: {}".format(currentNode.id))
+        for j in range(0, graph.length):
+            
+            if(graph.nodes[j].active == False):
+                continue
+
+            if(currentNode.id == graph.nodes[j].id):
+                continue
+
+            edge = Edge(currentNode,graph.nodes[j]) 
+            if bestEdge is None:
+                bestEdge = edge
+            else:
+                if(bestEdge.GetLength() > edge.GetLength()):
+                    del bestEdge
+                    bestEdge = edge
+        gc.collect()
+        if(bestEdge is None):
+            lastNode = graph.tourNodes[0]
+            bestEdge = Edge(currentNode,lastNode)
+
+        #print("New Edge: {}".format(bestEdge.id)) 
+        graph.addEgdeinTour(bestEdge)
+        graph.addNodeinTour(currentNode)       
+        activeNodes-=1
+        currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node2
+        
+        
+        print("Tour Length: {}".format(graph.tourLength))
+
+    for j in range(0, graph.length):
+        graph.nodes[j].active = True
+
+    print("Instance: {} - Nearest Neighbour Solution End".format(graph.length))
+    print("=========================================================")
+    return graph.GetTourIds(),GetObjectiveFunctionValue(graph)
 
 #1/8 <= beta <= 1/2
-def GuidedLocalSearch(graph,iterations = 20000,beta = 0.5):
+def GuidedLocalSearch(graph,iterations = 50000,beta = 0.5):
     print("=========================================================")
     print("Instance: {} - Start Guided Local Search".format(graph.length))
-    currentSolutionSequence, currentObjFunction = GetInitialSolution(graph) 
+    #currentSolutionSequence, currentObjFunction = GetInitialSolution(graph) 
+    currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
     for i in range(0,iterations):
@@ -229,7 +275,9 @@ def Swap2Opt(graph,node,alpha=1):
     removedEdges = [] 
     addedEdges = []
     deltaCost = 0
-    for i in range(currentNode+1,len(graph.tourNodes)-1):
+    for i in range(0,len(graph.tourNodes)):
+        if currentNode == i:
+            continue
         #print("2-OPT: CURRENT SWAP: {}<->{}".format(graph.tourNodes[currentNode].id,graph.tourNodes[i].id))
         removedEdges, addedEdges = GetMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
         deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
