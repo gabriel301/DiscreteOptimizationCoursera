@@ -56,14 +56,22 @@ class Node:
         self.x = x #Euclidean X coordinate
         self.y = y #Euclidean Y coordinate
         self.id = id #Node ID
-        self.adjacentList = {} #Edges that are adjacent to this node
+        self.adjacentList = {} #Edges that are adjacent to this node - Store the edge because once it is calculated, we do not need to computate it again
         self.active = True #Active flag for the Fast Local Search procedure
+    
+    def GetAdjacentNodes(self):
+        adjacentNodes = []
+        for key in self.adjacentList:
+            node = self.adjacentList[key].node1 if  self.adjacentList[key].node1.id != self.id else self.adjacentList[key].node2
+            adjacentNodes.append(node)
+        return adjacentNodes
 
 class Graph:
     def __init__ (self):
         self.nodes = [] #All nodes of the graph
         self.tourEdges = {} #Edges of the current solution
-        self.tourNodes = OrderedDict() #Nodes, in order, of the current solution
+        #self.tourNodes = OrderedDict() #Nodes, in order, of the current solution
+        self.tourNodes = []
         self.length = 0 #Number of nodes of the graph
         self.tourLength = 0 #Length of the current tour
         self.edgesPool ={} #Stores all edges that have been used in a solution
@@ -73,23 +81,31 @@ class Graph:
         self.length = self.length+1
 
     def addEgdeinTour(self,edge):
+        #print("Add Edge in Tour: Edges Tour Count: {}, Pool Count: {} Edge to be Added: {}".format(len(self.tourEdges),len(self.edgesPool),edge.id))     
         self.tourEdges[edge.id] = edge
         self.edgesPool[edge.id] = edge
         self.nodes[edge.node1.id].adjacentList[edge.id] = edge
         self.nodes[edge.node2.id].adjacentList[edge.id] = edge
         self.tourLength = self.tourLength + edge.GetLength()
-    
+        #print("Add Edge in Tour: New Edges Tour Count {} Pool Count: {}:".format(len(self.tourEdges),len(self.edgesPool)))
+        #input("Press Enter...")
+
     def addNodeinTour(self,node):
-         self.tourNodes[node.id] = node
+         #self.tourNodes[node.id] = node
+         self.tourNodes.append(node)
 
     def deleteEdgeinTour(self,edge):
+        
         distance = edge.GetLength()
         self.tourLength = self.tourLength - distance
         id = edge.id
         del edge.node1.adjacentList[id]
-        del edge.node2.adjacentList[id]       
+        del edge.node2.adjacentList[id]  
+        #print("Delete Edge in Tour: Edges Tour Count: {}, Pool Count: {} Edge to be Deleted: {}".format(len(self.tourEdges),len(self.edgesPool),id))     
         del self.tourEdges[id]
+        #print("Delete Edge in Tour: New Edges Tour Count {} Pool Count: {} (Before GC):".format(len(self.tourEdges),len(self.edgesPool)))
         gc.collect()
+        #print("Delete Edge in Tour: New Edges Tour Count: {} Pool Count: {} (After GC)".format(len(self.tourEdges),len(self.edgesPool)))
 
     def getFirstTourElement(self):
         return next(iter(self.tourNodes))
@@ -110,10 +126,21 @@ class Graph:
                 return self.edgesPool[key]
             else:
                 return None
-    def rearrangeTourNodes(self,newRoute):
-        ordered = OrderedDict((k, self.tourNodes[k]) for k in newRoute)
-        self.tourNodes = ordered
-        gc.collect()
+    def SwapNodesInTour(self,node1,node2):
+        a, b = self.tourNodes.index(node1), self.tourNodes.index(node2)
+        self.tourNodes[b], self.tourNodes[a] = self.tourNodes[a], self.tourNodes[b]
+    
+    def PrintTour(self):
+        nodeIds = []
+        for node in self.tourNodes:
+            nodeIds.append(node.id)
+        print(nodeIds)
+
+    def GetTourIds(self):
+        nodeIds = []
+        for node in self.tourNodes:
+            nodeIds.append(node.id)
+        return nodeIds
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -132,7 +159,7 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Guided Fast Local Search (GFLS)
-    solutionSequence,objValue = GuidedLocalSearch(graph,100,0.5)
+    solutionSequence,objValue = GuidedLocalSearch(graph)
     #solutionSequence,objValue = GetInitialSolution(graph)
 
     # prepare the solution in the specified output format
@@ -154,161 +181,145 @@ def GetInitialSolution(graph):
         edge = Edge(graph.nodes[index],graph.nodes[index+1]) 
         graph.addEgdeinTour(edge)
         graph.addNodeinTour(graph.nodes[index])
-        graph.addNodeinTour(graph.nodes[index+1])
         #print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
         #print("Tour Length: {}".format(graph.tourLength))
 
     edge = Edge(graph.nodes[0],graph.nodes[-1])
     graph.addEgdeinTour(edge)
     graph.addNodeinTour(graph.nodes[-1])
-    graph.addNodeinTour(graph.nodes[0])
+    #graph.addNodeinTour(graph.nodes[0])
     # print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
     # print("Tour Length: {}".format(graph.tourLength))
     # print("Instance: {} - Initial Solution End".format(graph.length))
     # print("=========================================================")
-    return graph.tourNodes.keys(), graph.tourLength
+    return graph.tourNodes,GetObjectiveFunctionValue(graph)
 
 #1/8 <= beta <= 1/2
-def GuidedLocalSearch(graph,iterations = 1000,beta = 0.5):
+def GuidedLocalSearch(graph,iterations = 20000,beta = 0.5):
     print("=========================================================")
     print("Instance: {} - Start Guided Local Search".format(graph.length))
     currentSolutionSequence, currentObjFunction = GetInitialSolution(graph) 
     print("Current Objective Value: {}".format(currentObjFunction))
-
+    alpha = 0
     for i in range(0,iterations):
-        alpha = beta * (currentObjFunction/len(graph.tourEdges))
+        
         solutionSequence, objFunction = FastLocalSearch(graph,alpha)
 
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
-            print("GLS New Current Objective Value: {}".format(currentObjFunction))
-            #input("Press Enter...")
-        # else:
-        #     break       
-
+            print("Current Objective Value: {}".format(currentObjFunction))
+   
+        alpha = beta * (currentObjFunction/len(graph.tourEdges))
         maxUtilValue = 0
         for key in graph.tourEdges.keys():
             aux = GetUtilValue(graph.tourEdges[key])
             if aux > maxUtilValue:
                 maxUtilValue = aux
-
+        
         PenalizeFeatures(graph,maxUtilValue)
-
     print("Instance: {} - End Guided Local Search".format(graph.length))
     print("=========================================================")
     return currentSolutionSequence, currentObjFunction
 
 def Swap2Opt(graph,node,alpha=1):
     activatedNodes = {}
-    currentObjValue = GetAlgumentedObjectiveFunctionValue(graph,alpha)
-    for key in node.adjacentList.keys():
-        print("2-OPT: CURRENT EDGE: {}".format(key))
-        newRoute, removedEdges, addedEdges = GetMove(graph,node,node.adjacentList[key])
-        # skip = False
-        # for edge in addedEdges:
-        #     if (edge.id in graph.tourEdges):
-        #         skip = True
-        #         break
-        # if skip:
-        #     continue
-        moveCost = EvaluateMovePenalized(graph,removedEdges,addedEdges,alpha)
+    currentNode = graph.tourNodes.index(node)
+    swapNodes = []
+    removedEdges = [] 
+    addedEdges = []
+    deltaCost = 0
+    for i in range(currentNode+1,len(graph.tourNodes)-1):
+        #print("2-OPT: CURRENT SWAP: {}<->{}".format(graph.tourNodes[currentNode].id,graph.tourNodes[i].id))
+        removedEdges, addedEdges = GetMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
+        deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
 
-        if(moveCost < currentObjValue):
-            currentObjValue = moveCost
-            for oldEdge in removedEdges:
-                graph.deleteEdgeinTour(oldEdge)
+        if(deltaCost < 0):
+            swapNodes.append(graph.tourNodes[currentNode])
+            swapNodes.append(graph.tourNodes[i])
+            #print("Current Solution: {} ".format(GetObjectiveFunctionValue(graph)))
+            # for oldEdge in removedEdges:
+            #     graph.deleteEdgeinTour(oldEdge)
 
             for newEdge in addedEdges:
                 activatedNodes[newEdge.node1.id] = newEdge.node1
                 activatedNodes[newEdge.node2.id] = newEdge.node2
                 newEdge.ActivateNodes()
-                graph.addEgdeinTour(newEdge)
+                #graph.addEgdeinTour(newEdge)
 
-            graph.rearrangeTourNodes(newRoute)
-            return activatedNodes,currentObjValue
+            #graph.SwapNodesInTour(graph.tourNodes[currentNode],graph.tourNodes[i])
 
-    return activatedNodes,currentObjValue
+            return activatedNodes,deltaCost,removedEdges,addedEdges,swapNodes
 
-#TODO Realize what subsequence must be reversed and find what edges will be added/removed
-#Check whether the edge exists in graph.edgesPool before creation to add (locate by id)
-def GetMove(graph,node,edge):
-    print("=========================================================")
-    print("Instance: {} - Start Get Move".format(graph.length))
+    return activatedNodes,1,removedEdges,addedEdges,swapNodes
+
+#This method returns what edges must be added/removed in order to perform the swap movement.
+#It does not change the tour. The tour is change only if an improvement is made by the swap
+#Check whether the edge exists in graph.edgesPool before creation.
+def GetMove(graph,currentNode,swapNode):
     removedEdges = []
     addedEdges = []
-    #Remove the adjacent edges
-    removedEdges.append(edge)
-    tourNodes = tuple(graph.tourNodes)
-    firstElementId = graph.getFirstTourElement()
-    lastElementId = graph.getLastTourElement()
-    circleEdge = None
-    #Remove the circular edge
-    if(firstElementId < lastElementId):
-        circleEdge = graph.tourEdges[str(firstElementId)+"-"+str(lastElementId)]
-    else:
-         circleEdge = graph.tourEdges[str(lastElementId)+"-"+str(firstElementId)]
-    removedEdges.append(circleEdge)
-
-    adjacentNode = edge.node1 if edge.node1.id != node.id else edge.node2
+    #Get Adjacent nodes in order to create the new edges
+    currentNodeAdjacency = currentNode.GetAdjacentNodes()
+    swapNodeAdjacency = swapNode.GetAdjacentNodes()
     
-    #Reverse the list
-    adjacentNodePos = tourNodes.index(adjacentNode.id)
-    currentNodePos = tourNodes.index(node.id)
-    route = list(graph.tourNodes.keys())
-    newRoute = []
-    if(currentNodePos < adjacentNodePos):
-        newRoute.extend(route[0:currentNodePos+1])
-        newRoute.extend(route[len(route)-1:currentNodePos:-1])
-    else:
-        newRoute.extend(route[0:adjacentNodePos+1])
-        newRoute.extend(route[len(route)-1:adjacentNodePos:-1])    
-    #Edges to Add
-    #Adjacent edge
-    adjacentEdge = graph.getEdgeFromPool(newRoute[currentNodePos],newRoute[adjacentNodePos])
-    if(adjacentEdge is None):
-        adjacentEdge = Edge(graph.nodes[newRoute[currentNodePos]],graph.nodes[newRoute[adjacentNodePos]])
-    #Circular Edge
-    circularEdge = graph.getEdgeFromPool(newRoute[0],newRoute[len(newRoute)-1])
-    if(circularEdge is None):
-        circularEdge = Edge(graph.nodes[newRoute[0]],graph.nodes[newRoute[len(newRoute)-1]])
-    addedEdges.append(adjacentEdge)
-    addedEdges.append(circularEdge)
+    #Include the current adjacent edges in the edges to be removed
+    for key in currentNode.adjacentList:
+        #Only Removes the edge if current node and swap node are not adjcent
+        if(currentNode.adjacentList[key].node1.id != swapNode.id and currentNode.adjacentList[key].node2.id != swapNode.id):
+            removedEdges.append(currentNode.adjacentList[key])
 
-    print("Current Route: {}".format(list(graph.tourNodes.keys())))
-    print("New Route: {}".format(newRoute))
-    print("Instance: {} - End Get Move".format(graph.length))
-    print("=========================================================")
-    return newRoute,removedEdges,addedEdges
+    for key in swapNode.adjacentList:
+        #Only Removes the edge if current node and swap node are not adjcent
+        if(swapNode.adjacentList[key].node1.id != currentNode.id and swapNode.adjacentList[key].node2.id != currentNode.id):
+            removedEdges.append(swapNode.adjacentList[key])
+
+    #Edges to Add
+    #Swap positions
+    for node in currentNodeAdjacency:
+        #It only creates the edge if current node and swap node are not adjacents
+        if(node.id != swapNode.id):
+            newEdge = graph.getEdgeFromPool(swapNode.id,node.id)
+            if(newEdge is None):
+                newEdge = Edge(swapNode,node)
+            addedEdges.append(newEdge)
+            # print("Edge to be Added: {} ".format(newEdge.id))
+    
+    for node in swapNodeAdjacency:
+        #It only creates the edge if current node and swap node are not adjacents
+        if(node.id != currentNode.id):
+            newEdge = graph.getEdgeFromPool(currentNode.id,node.id)
+            if(newEdge is None):
+                newEdge = Edge(currentNode,node)
+            addedEdges.append(newEdge)
+
+    return removedEdges,addedEdges
 
 def FastLocalSearch(graph,alpha):
-    #print("=========================================================")
-    #print("Instance: {} - Start Fast Local Search".format(graph.length))
-    currentSolutionSequence = graph.tourNodes.keys()
-    currentAugmentedObj = GetAlgumentedObjectiveFunctionValue(graph,alpha)
-    currentObjFunction = graph.tourLength
+    currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
-    #print("Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
+    currentObjValue = GetObjectiveFunctionValue(graph)
     while len(activeNeighbourhoods.keys()) > 0:
         key = list(activeNeighbourhoods.keys())[0]
         node = activeNeighbourhoods[key]
         del activeNeighbourhoods[key]
         node.active = False
-        # if node.id == graph.getFirstTourElement() or node.id == graph.getLastTourElement():
-        #     continue
-         
-        activatedNodes, newAugmentedObjValue = Swap2Opt(graph,node,alpha)
-        if(currentAugmentedObj > newAugmentedObjValue):
-            currentAugmentedObj = newAugmentedObjValue
-            currentSolutionSequence = graph.tourNodes.keys()
-            currentObjFunction = graph.tourLength
+        
+        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha)
+        if(deltaCost < 0):
+            for oldEdge in removedEdges:
+                graph.deleteEdgeinTour(oldEdge)
+
+            for newEdge in addedEdges:
+                graph.addEgdeinTour(newEdge)
+
+            graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
+            currentSolutionSequence = graph.GetTourIds()
+            currentObjValue = GetObjectiveFunctionValue(graph)
             for key in activatedNodes.keys():
                 activeNeighbourhoods[key] = activatedNodes[key]
-            #print("FLS - New Current Objective Value: {} ".format(currentObjFunction))
-            #print("FLS - New Current Augmented Objective Value: {} - Active Neighbourhoods {} ".format(currentAugmentedObj,len(activeNeighbourhoods)))
-    #print("Instance: {} -  End Fast Local Search".format(graph.length))
-    #print("=========================================================")
-    return currentSolutionSequence, GetObjectiveFunctionValue(graph)
+
+    return currentSolutionSequence, currentObjValue
 
 
 def GetActivateNeighbourhoods(graph):
@@ -343,26 +354,34 @@ def GetAlgumentedObjectiveFunctionValue(graph,alpha):
         length += (graph.tourEdges[key].GetLength() + (alpha*graph.tourEdges[key].penalty))
     return length
 
+#Evaluation of the Original Objective Function
+def Evaluate(removedEdges,addedEdges):
+    removed = 0
+    added = 0
+    for edge in removedEdges:
+        removed = removed + edge.GetLength()
+
+    for edge in addedEdges:
+        added = added + edge.GetLength()
+
+    delta = added - removed
+    
+    return delta
 #Evaluation of the move using Augmented Objective Function
-def EvaluateMovePenalized(graph,removedEdges,addedEdges,alpha=1):
-    print("=========================================================")
-    print("Instance: {} - Start Penalized Evaluation".format(graph.length))
+def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1):
+
     removed = 0
     added = 0
     for edge in removedEdges:
         removed = removed + edge.GetLength() + (alpha*edge.penalty)
-        print("Edge to be Removed: {} ".format(edge.id))
-    print("Cost to be Removed: {} ".format(removed))
+
     for edge in addedEdges:
         added = added + edge.GetLength() + (alpha*edge.penalty)
-        print("Edge to be Added: {} ".format(edge.id))
-    print("Cost to be Added: {} ".format(added))
-    cost = graph.tourLength - removed + added
-    print("Total Cost: {} ".format(cost))
-    print("Instance: {} - End Penalized Evaluation".format(graph.length))
-    print("=========================================================")
+
+    delta = added - removed
+
     
-    return cost
+    return delta
 
 if __name__ == '__main__':
     import sys
