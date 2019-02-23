@@ -14,8 +14,9 @@ from collections import namedtuple
 from collections import OrderedDict
 import sys
 import gc
-import queue 
-
+import queue
+import random 
+import time
 
 #Data Structures Definitions
 
@@ -144,6 +145,7 @@ class Graph:
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
+    start = time.time()
 
     graph = Graph()
     # parse the input
@@ -167,14 +169,18 @@ def solve_it(input_data):
 
     del graph
     gc.collect()
+    end = time.time()
+    hours, rem = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+    print("Execution Time: {:0>2}:{:0>2}:{:05.2f}".format(int(hours),int(minutes),seconds))
     return output_data
 
 #Get the Initial Solution
 #For symmetry breaking, only the egdes a -> b, where a < b, are created.
 #However, the edge is referenced by both nodes
 def GetInitialSolution(graph):
-    #print("=========================================================")
-    #print("Instance: {} - Initial Solution Start".format(graph.length))
+    print("=========================================================")
+    print("Instance: {} - Initial Solution Start".format(graph.length))
     ##input("Press Enter to Continue")
     for index in range(0, graph.length-1):
         edge = Edge(graph.nodes[index],graph.nodes[index+1]) 
@@ -189,8 +195,8 @@ def GetInitialSolution(graph):
     #graph.addNodeinTour(graph.nodes[0])
     # print("Edge: {} Length: {}".format(edge.id,edge.GetLength()))
     # print("Tour Length: {}".format(graph.tourLength))
-    # print("Instance: {} - Initial Solution End".format(graph.length))
-    # print("=========================================================")
+    print("Instance: {} - Initial Solution End".format(graph.length))
+    print("=========================================================")
     return graph.GetTourIds(),GetObjectiveFunctionValue(graph)
 
 def GetNearestNeighbourhoodSolution(graph):
@@ -240,22 +246,45 @@ def GetNearestNeighbourhoodSolution(graph):
     return graph.GetTourIds(),GetObjectiveFunctionValue(graph)
 
 #1/8 <= beta <= 1/2
-def GuidedLocalSearch(graph,iterations = 50000,beta = 0.5):
+def GuidedLocalSearch(graph,iterations = 50000,beta = 0.5,randomSwapsLimit=10,firstImprovement = True):
     print("=========================================================")
     print("Instance: {} - Start Guided Local Search".format(graph.length))
     #currentSolutionSequence, currentObjFunction = GetInitialSolution(graph) 
     currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
+    lastImprovement = 0
+    noImprovementLimit = 0 
+    randomSwaps = 0
+    if (graph.length > 200):
+        #noImprovementLimit = ((0.25*math.sqrt(graph.length))/graph.length)*iterations
+        noImprovementLimit = 0.01*iterations
+    else:
+        noImprovementLimit = noImprovementLimit = 0.1*iterations
     for i in range(0,iterations):
         
-        solutionSequence, objFunction = FastLocalSearch(graph,alpha)
+        solutionSequence, objFunction = FastLocalSearch(graph,alpha,firstImprovement)
 
+        #print("CANDIDATE Objective Value: {}".format(objFunction))
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
             print("Current Objective Value: {}".format(currentObjFunction))
-   
+            lastImprovement = i
+
+        #Random Pertubation Restart
+        if not firstImprovement:
+            if(i-lastImprovement >= noImprovementLimit):
+                if(randomSwaps < randomSwapsLimit):
+                    RandomSwaps(graph)
+                    randomSwaps +=1
+                    lastImprovement = i
+                    alpha = 0
+                    #noImprovementLimit = 0.5*noImprovementLimit
+                    continue
+                print("No improvement after {} iterations. Stopping execution.".format(i-lastImprovement))
+                break
+
         alpha = beta * (currentObjFunction/len(graph.tourEdges))
         maxUtilValue = 0
         for key in graph.tourEdges.keys():
@@ -268,38 +297,72 @@ def GuidedLocalSearch(graph,iterations = 50000,beta = 0.5):
     print("=========================================================")
     return currentSolutionSequence, currentObjFunction
 
-def Swap2Opt(graph,node,alpha=1):
+def RandomSwaps(graph):
+    print("=========================================================")
+    print("Instance: {} - Start Random Swaps".format(graph.length))
+    limit = int(0.25*graph.length)
+    i=0
+    while i < limit: 
+        pos1 = random.randint(0,graph.length-1)
+        pos2 = random.randint(0,graph.length-1)
+        
+        while pos1 == pos2:
+            pos2 = random.randint(0,graph.length-1)
+        #print("Graph Length: {} Pos 1: {} Pos 2: {} I: {} Limit: {}".format(graph.length,pos1,pos2,i,limit))
+        removedEdges, addedEdges = GetMove(graph,graph.tourNodes[pos1],graph.tourNodes[pos2])
+        #print("Graph Length: {} Pos 1: {} Pos 2: {} I: {} Limit: {}".format(graph.length,pos1,pos2,i,limit))
+        #print("Removed Edges: {} Added Edges: {} ".format(len(removedEdges),len(addedEdges)))
+        for oldEdge in removedEdges:
+            graph.deleteEdgeinTour(oldEdge)
+
+        for newEdge in addedEdges:
+            graph.addEgdeinTour(newEdge)
+        graph.SwapNodesInTour(graph.tourNodes[pos1],graph.tourNodes[pos2])
+        #print("Graph Length: {} Pos 1: {} Pos 2: {} I: {} Limit: {}".format(graph.length,pos1,pos2,i,limit))
+        i+=1
+
+    for node in graph.nodes:
+        node.active = True
+
+    for key in graph.edgesPool:
+        graph.edgesPool[key].penalty = 0
+    #     graph.tourEdges[key].ActivateNodes()
+
+    print("Current Objective Value: {}".format(graph.tourLength))
+    print("Instance: {} - End Random Swaps".format(graph.length))
+    print("=========================================================")
+
+#Best Improvement or First Improvement Strategy
+def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
     activatedNodes = {}
     currentNode = graph.tourNodes.index(node)
     swapNodes = []
-    removedEdges = [] 
-    addedEdges = []
+    currentRemovedEdges = [] 
+    currentAddedEdges = []
     deltaCost = 0
+    currentDeltaCost = 0
     for i in range(0,len(graph.tourNodes)):
         if currentNode == i:
             continue
-        #print("2-OPT: CURRENT SWAP: {}<->{}".format(graph.tourNodes[currentNode].id,graph.tourNodes[i].id))
         removedEdges, addedEdges = GetMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
         deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
 
-        if(deltaCost < 0):
+        if(deltaCost < currentDeltaCost):
+            currentDeltaCost = deltaCost
+            swapNodes = []
             swapNodes.append(graph.tourNodes[currentNode])
             swapNodes.append(graph.tourNodes[i])
-            #print("Current Solution: {} ".format(GetObjectiveFunctionValue(graph)))
-            # for oldEdge in removedEdges:
-            #     graph.deleteEdgeinTour(oldEdge)
+            currentRemovedEdges = list(removedEdges) 
+            currentAddedEdges = list(addedEdges)
+            if fisrtImprovement == True:
+                break
 
-            for newEdge in addedEdges:
-                activatedNodes[newEdge.node1.id] = newEdge.node1
-                activatedNodes[newEdge.node2.id] = newEdge.node2
-                newEdge.ActivateNodes()
-                #graph.addEgdeinTour(newEdge)
+    for newEdge in currentAddedEdges:
+        activatedNodes[newEdge.node1.id] = newEdge.node1
+        activatedNodes[newEdge.node2.id] = newEdge.node2
+        newEdge.ActivateNodes()
 
-            #graph.SwapNodesInTour(graph.tourNodes[currentNode],graph.tourNodes[i])
-
-            return activatedNodes,deltaCost,removedEdges,addedEdges,swapNodes
-
-    return activatedNodes,1,removedEdges,addedEdges,swapNodes
+    return activatedNodes,currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
 
 #This method returns what edges must be added/removed in order to perform the swap movement.
 #It does not change the tour. The tour is change only if an improvement is made by the swap
@@ -343,7 +406,7 @@ def GetMove(graph,currentNode,swapNode):
 
     return removedEdges,addedEdges
 
-def FastLocalSearch(graph,alpha):
+def FastLocalSearch(graph,alpha,firstImprovement = True):
     currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
     currentObjValue = GetObjectiveFunctionValue(graph)
@@ -353,7 +416,7 @@ def FastLocalSearch(graph,alpha):
         del activeNeighbourhoods[key]
         node.active = False
         
-        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha)
+        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha,firstImprovement)
         if(deltaCost < 0):
             for oldEdge in removedEdges:
                 graph.deleteEdgeinTour(oldEdge)
@@ -363,7 +426,7 @@ def FastLocalSearch(graph,alpha):
 
             graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
             currentSolutionSequence = graph.GetTourIds()
-            currentObjValue = GetObjectiveFunctionValue(graph)
+            currentObjValue = graph.tourLength
             for key in activatedNodes.keys():
                 activeNeighbourhoods[key] = activatedNodes[key]
 
