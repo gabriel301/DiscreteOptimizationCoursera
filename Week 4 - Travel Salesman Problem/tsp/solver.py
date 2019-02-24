@@ -270,7 +270,7 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Get The params for the problem instance
-    params = GetInstanceParameters(Strategy.Gamma,graph.length)
+    params = GetInstanceParameters(Strategy.Delta,graph.length)
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph,params)
@@ -346,6 +346,10 @@ def DeltaSetup(instanceSize):
     params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
+    params["executionTimeLimit"] = getTimeInSeconds(1,0,0) #1 hour of time limit
+    params["randomRestarts"] = True
+    params["perturbationSize"] = 0.2
+    params["perturbationIncrement"] = 1.5
     return params
 
 def EpsilonSetup(instanceSize):
@@ -485,8 +489,6 @@ def GuidedLocalSearch(graph,params):
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
             print("NEW Objective Value: {}".format(currentObjFunction))
-            
-
             lastImprovemntClock.setStart(time.time())
 
         
@@ -519,6 +521,7 @@ def GuidedLocalSearch(graph,params):
         PenalizeFeatures(graph,maxUtilValue)
     print("Instance: {} - End Guided Local Search".format(graph.length))
     print("=========================================================")
+    print("Best Solution found at {}".format(getIntervalDuration(clock.getStart(),lastImprovemntClock.getStart())))
     return currentSolutionSequence, currentObjFunction
 
 
