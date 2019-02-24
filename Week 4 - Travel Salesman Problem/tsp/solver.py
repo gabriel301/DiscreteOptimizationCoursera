@@ -218,6 +218,9 @@ def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["randomRestarts"] = True
     params["strategy"] = Strategy.Alpha
+    params["perturbationSize"] = 0.2
+    params["perturbationIncrement"] = 1.05
+    params["initialSolution"] = "Nearest" if instanceSize < 2000 else "Default"
     return params
 
 def DefaultSetup(instanceSize):
@@ -232,6 +235,7 @@ def DefaultSetup(instanceSize):
     params["randomRestarts"] = False
     params["strategy"] = Strategy.Default
     params["earlyStopping"] = True
+    params["initialSolution"] = "Default"
 
     return params
 ###############################
@@ -318,7 +322,10 @@ def GuidedLocalSearch(graph,params):
     print("=========================================================")
     print("=========================================================")
     print("Start Guided Local Search")
-    currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
+    if(params["initialSolution"]=="Nearest"):
+        currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
+    if(params["initialSolution"]=="Default"):
+        currentSolutionSequence, currentObjFunction = GetInitialSolution(graph)
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
     clock.setStart(time.time())
