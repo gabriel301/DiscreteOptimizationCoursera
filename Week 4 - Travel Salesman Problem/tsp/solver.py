@@ -418,6 +418,7 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
     currentAddedEdges = []
     deltaCost = 0
     currentDeltaCost = 0
+    currentObjDeltaCost = 0
     #NOTE - THE LOOP AFECTS THE SOLUTION. DIFFERENT LOOPS LEAD TO DIFFERENT OBJECTIVE WITH THE SAME PARAMETERS
     # loopValues = []
     # loopValues.extend(range(currentNode+1,len(graph.tourNodes)))
@@ -429,9 +430,10 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
             continue
         removedEdges, addedEdges = GetMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
         deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
-
-        if(deltaCost < currentDeltaCost):
+        objDeltaCost = EvaluateMove(removedEdges,addedEdges)
+        if(deltaCost < currentDeltaCost or objDeltaCost < currentObjDeltaCost):
             currentDeltaCost = deltaCost
+            currentObjDeltaCost = objDeltaCost
             swapNodes = []
             swapNodes.append(graph.tourNodes[currentNode])
             swapNodes.append(graph.tourNodes[i])
@@ -450,7 +452,7 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
         activatedNodes[oldEdge.node2.id] = oldEdge.node2
         oldEdge.ActivateNodes()
 
-    return activatedNodes,currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
+    return activatedNodes,currentDeltaCost,currentObjDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
 
 #This method returns what edges must be added/removed in order to perform the swap movement.
 #It does not change the tour. The tour is change only if an improvement is made by the swap
@@ -508,8 +510,8 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,firstImprovement = True):
         del activeNeighbourhoods[key]
         node.active = False
         
-        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha,firstImprovement)
-        if(deltaCost < 0):
+        activatedNodes, deltaCost,objDeltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha,firstImprovement)
+        if(deltaCost < 0 or objDeltaCost < 0):
             for oldEdge in removedEdges:
                 graph.deleteEdgeinTour(oldEdge)
 
@@ -562,6 +564,20 @@ def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1):
  
     return delta
 
+#Evaluate the move without penalization
+def EvaluateMove(removedEdges,addedEdges):
+
+    removed = 0
+    added = 0
+    for edge in removedEdges:
+        removed = removed + edge.GetLength()
+
+    for edge in addedEdges:
+        added = added + edge.GetLength()
+
+    delta = added - removed
+ 
+    return delta
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
