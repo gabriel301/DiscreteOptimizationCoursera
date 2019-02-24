@@ -166,21 +166,17 @@ class Graph:
 
     def SwapEdgesInTour(self,node1,node2):
 
-        currentNextPos = node1.GetAdjacentNodes(len(self.tourNodes))[1]
         swapNextPos = node2.GetAdjacentNodes(len(self.tourNodes))[1]
         newRoute = []
-        # print("Current Node: {} -  Pos: {} | Next Node: {} -  Pos: {}".format(node1.id,node1.tourPos,currentNextPos.id,currentNextPos.tourPos))
-        # print("Swap Node: {} -  Pos: {} | Next Node: {} -  Pos: {}".format(node2.id,node2.tourPos,swapNextPos.id,swapNextPos.tourPos))
+
         i = (swapNextPos.tourPos)%self.length
         end = (node1.tourPos+1)%self.length
-        # print("Copy 1st part | Start Pos: {} - End Pos: {}".format(i,end))
 
         #Copy the first part
         while i != end:
             newRoute.append(self.tourNodes[i])
             i = (i+1)%self.length
-        #print([a.id for a in newRoute])
-        #input("Enter")
+
 
         #Copy reverse
         i = (node2.tourPos + self.length)%self.length
@@ -189,19 +185,6 @@ class Graph:
             newRoute.append(self.tourNodes[i])
             i = (i-1)%self.length
 
-        # print("Copy Revered | Start Pos: {} - End Pos: {}".format(i,end))
-        # print([a.id for a in newRoute])
-        #input("Enter")
-        #copy the remaining
-        # i = (swapNextPos.tourPos)%self.length
-        # end = (node1.tourPos)%self.length
-        # print("Copy Remaining | Start Pos: {} - End Pos: {}".format(i,end))
-        # while i < end:
-        #     newRoute.append(self.tourNodes[i])
-        #     i = (i+1)%self.length
-
-        # print([a.id for a in newRoute])
-        #input("Enter")
         for i in range(0,len(self.tourNodes)):
             newRoute[i].tourPos = i
 
@@ -380,6 +363,7 @@ def DefaultSetup(instanceSize):
     params["localSearchProcedure"] = Swap
 
     return params
+
 ###############################
 #     Search Methods          #
 ###############################
@@ -521,7 +505,8 @@ def GuidedLocalSearch(graph,params):
         PenalizeFeatures(graph,maxUtilValue)
     print("Instance: {} - End Guided Local Search".format(graph.length))
     print("=========================================================")
-    print("Best Solution found at {}".format(getIntervalDuration(clock.getStart(),lastImprovemntClock.getStart())))
+    hour,min,sec = getIntervalDuration(clock.getStart(),lastImprovemntClock.getStart())
+    print("Best Solution found in {:0>2}:{:0>2}:{:05.2f}s of execution.".format(hour,min,sec))
     return currentSolutionSequence, currentObjFunction
 
 
@@ -743,9 +728,6 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
         
         activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = localSearchProcudure(graph,node,alpha,improvementType)
         if(deltaCost < 0):
-            # print("Current Solution: {}".format(graph.GetTourIds()))
-            # print("Added Edges: {}".format([a.id for a in addedEdges]))
-            # print("Removed Edges: {}".format([a.id for a in removedEdges]))
             if (localSearchProcudure.__name__ == "Swap"):
                 graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
             else:
@@ -758,9 +740,6 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
                 graph.addEgdeinTour(newEdge)
                     
             currentSolutionSequence = graph.GetTourIds()
-            # print("New Solution: {}".format(graph.GetTourIds()))
-            # print("New Objective Value: {}".format(graph.tourLength))
-            # input("Press Enter...")
             currentObjValue = graph.tourLength
             for key in activatedNodes.keys():
                 activeNeighbourhoods[key] = activatedNodes[key]
