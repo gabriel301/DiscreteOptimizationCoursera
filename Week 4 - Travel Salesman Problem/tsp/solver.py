@@ -18,6 +18,7 @@ import queue
 import random 
 import time
 from enum import Enum
+import datetime
 
 ###################################
 # Data Structures Definitions     #
@@ -62,13 +63,49 @@ class Node:
         self.id = id #Node ID
         self.adjacentList = {} #Edges that are adjacent to this node - Store the edge because once it is calculated, we do not need to computate it again
         self.active = True #Active flag for the Fast Local Search procedure
+        self.tourPos = -1 #the position of the node in the Tour List
     
-    def GetAdjacentNodes(self):
-        adjacentNodes = []
+    #Return the adjacent Nodes of a node
+    #List[0] = Previous Node
+    #List[1] = Next Node
+    def GetAdjacentNodes(self,tourSize):
+        adjacentNodes = [None,None]
+        aux = []
         for key in self.adjacentList:
-            node = self.adjacentList[key].node1 if  self.adjacentList[key].node1.id != self.id else self.adjacentList[key].node2
-            adjacentNodes.append(node)
+            node = self.adjacentList[key].node1 if self.adjacentList[key].node1.id != self.id else self.adjacentList[key].node2
+            aux.append(node)
+
+        if(self.tourPos == 0 or self.tourPos == tourSize-1):
+            if self.tourPos - aux[0].tourPos < self.tourPos - aux[1].tourPos:
+                adjacentNodes[0] = aux[0]
+                adjacentNodes[1] = aux[1]
+            else:
+                adjacentNodes[0] = aux[1]
+                adjacentNodes[1] = aux[0]
+        else:
+            if self.tourPos - aux[0].tourPos > self.tourPos - aux[1].tourPos:
+                adjacentNodes[0] = aux[0]
+                adjacentNodes[1] = aux[1]
+            else:
+                adjacentNodes[0] = aux[1]
+                adjacentNodes[1] = aux[0]
+
         return adjacentNodes
+    
+    def GetNextEdge(self,tourSize):
+
+        nexNode = self.GetAdjacentNodes(tourSize)[1]
+        for key in self.adjacentList:
+            if (self.adjacentList[key].node1.id == nexNode.id or self.adjacentList[key].node2.id == nexNode.id):
+                return self.adjacentList[key]
+        return None        
+
+    def GetPreviousEdge(self,tourSize):
+        prevNode = self.GetAdjacentNodes(tourSize)[0]
+        for key in self.adjacentList:
+            if (self.adjacentList[key].node1.id == prevNode.id or self.adjacentList[key].node2.id == prevNode.id):
+                return self.adjacentList[key]
+        return None
 
 class Graph:
     def __init__ (self):
@@ -96,6 +133,7 @@ class Graph:
 
     def addNodeinTour(self,node):
          self.tourNodes.append(node)
+         node.tourPos = len(self.tourNodes)-1
 
     def deleteEdgeinTour(self,edge):
         
@@ -123,8 +161,52 @@ class Graph:
 
     def SwapNodesInTour(self,node1,node2):
         a, b = self.tourNodes.index(node1), self.tourNodes.index(node2)
+        self.tourNodes[b].tourPos, self.tourNodes[a].tourPos = self.tourNodes[a].tourPos, self.tourNodes[b].tourPos
         self.tourNodes[b], self.tourNodes[a] = self.tourNodes[a], self.tourNodes[b]
-    
+
+    def SwapEdgesInTour(self,node1,node2):
+
+        currentNextPos = node1.GetAdjacentNodes(len(self.tourNodes))[1]
+        swapNextPos = node2.GetAdjacentNodes(len(self.tourNodes))[1]
+        newRoute = []
+        # print("Current Node: {} -  Pos: {} | Next Node: {} -  Pos: {}".format(node1.id,node1.tourPos,currentNextPos.id,currentNextPos.tourPos))
+        # print("Swap Node: {} -  Pos: {} | Next Node: {} -  Pos: {}".format(node2.id,node2.tourPos,swapNextPos.id,swapNextPos.tourPos))
+        i = (swapNextPos.tourPos)%self.length
+        end = (node1.tourPos+1)%self.length
+        # print("Copy 1st part | Start Pos: {} - End Pos: {}".format(i,end))
+
+        #Copy the first part
+        while i != end:
+            newRoute.append(self.tourNodes[i])
+            i = (i+1)%self.length
+        #print([a.id for a in newRoute])
+        #input("Enter")
+
+        #Copy reverse
+        i = (node2.tourPos + self.length)%self.length
+        end = (node1.tourPos)%self.length
+        while i != end:
+            newRoute.append(self.tourNodes[i])
+            i = (i-1)%self.length
+
+        # print("Copy Revered | Start Pos: {} - End Pos: {}".format(i,end))
+        # print([a.id for a in newRoute])
+        #input("Enter")
+        #copy the remaining
+        # i = (swapNextPos.tourPos)%self.length
+        # end = (node1.tourPos)%self.length
+        # print("Copy Remaining | Start Pos: {} - End Pos: {}".format(i,end))
+        # while i < end:
+        #     newRoute.append(self.tourNodes[i])
+        #     i = (i+1)%self.length
+
+        # print([a.id for a in newRoute])
+        #input("Enter")
+        for i in range(0,len(self.tourNodes)):
+            newRoute[i].tourPos = i
+
+        self.tourNodes = newRoute
+
     def PrintTour(self):
         nodeIds = []
         for node in self.tourNodes:
@@ -141,7 +223,9 @@ class Strategy(Enum):
     Default = "Default"
     Alpha = "Alpha"
     Beta = "Beta"
-    Gama = "Gama"
+    Gamma = "Gamma"
+    Delta = "Delta"
+    Epsilon = "Epsilon"
 
 class ImprovementType(Enum):
     Best = "Best Improvement"
@@ -171,7 +255,7 @@ clock = Clock()
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
     start = time.time()
-
+    print("Start DateTime: {}".format(datetime.datetime.now()))
     graph = Graph()
     # parse the input
     lines = input_data.split('\n')
@@ -186,7 +270,7 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Get The params for the problem instance
-    params = GetInstanceParameters(Strategy.Beta,graph.length)
+    params = GetInstanceParameters(Strategy.Gamma,graph.length)
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph,params)
@@ -199,6 +283,7 @@ def solve_it(input_data):
     gc.collect()
     end = time.time()
     hours, minutes, seconds = getIntervalDuration(start,end)
+    print("End DateTime: {}".format(datetime.datetime.now()))
     print("Execution Time: {:0>2}:{:0>2}:{:05.2f}s".format(int(hours),int(minutes),seconds))
     return output_data
 
@@ -219,14 +304,17 @@ def GetInstanceParameters(strategy,instanceSize):
         return AlphaSetup(instanceSize)
     elif strategy == Strategy.Beta:
         return BetaSetup(instanceSize)
-    elif strategy == Strategy.Gama:
-        return GamaSetup(instanceSize)
+    elif strategy == Strategy.Gamma:
+        return GammaSetup(instanceSize)
+    elif strategy == Strategy.Delta:
+        return DeltaSetup(instanceSize)
+    elif strategy == Strategy.Epsilon:
+        return EpsilonSetup(instanceSize)
     else: 
         return DefaultSetup(instanceSize)
 
 def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["randomRestarts"] = True
     params["strategy"] = Strategy.Alpha
     params["perturbationSize"] = 0.2
     params["perturbationIncrement"] = 1.5
@@ -242,15 +330,34 @@ def BetaSetup(instanceSize):
     params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
     return params
 
-def GamaSetup(instanceSize):
+def GammaSetup(instanceSize):
+    params = DefaultSetup(instanceSize)
+    params["randomRestarts"] = False
+    params["strategy"] = Strategy.Gamma
+    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["localSearchProcedure"] = TwoOpt
+    params["improvementType"] = ImprovementType.Best
+    return params
+
+def DeltaSetup(instanceSize):
+    params = DefaultSetup(instanceSize)
+    params["strategy"] = Strategy.Delta
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
+    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["improvementType"] = ImprovementType.Best
+    params["localSearchProcedure"] = TwoOpt
+    return params
+
+def EpsilonSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["randomRestarts"] = True
-    params["strategy"] = Strategy.Gama
+    params["strategy"] = Strategy.Epsilon
     params["perturbationSize"] = 0.2
     params["perturbationIncrement"] = 1.5
     params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
-    params["noImprovementTimeLimit"] = 10*instanceSize if 10*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
     params["improvementType"] = ImprovementType.Best
+    params["localSearchProcedure"] = TwoOpt
     return params
 
 def DefaultSetup(instanceSize):
@@ -266,6 +373,7 @@ def DefaultSetup(instanceSize):
     params["strategy"] = Strategy.Default
     params["earlyStopping"] = True
     params["initialSolutionFunction"] = GetInitialSolution
+    params["localSearchProcedure"] = Swap
 
     return params
 ###############################
@@ -277,6 +385,8 @@ def DefaultSetup(instanceSize):
 #However, the edge is referenced by both nodes
 #This method just create a contiguous path from the first to the last node
 def GetInitialSolution(graph):
+    global clock
+    clock.setStart(time.time())
     print("=========================================================")
     print("Instance: {} - Initial Solution Start".format(graph.length))
     for index in range(0, graph.length-1):
@@ -297,6 +407,8 @@ def GetInitialSolution(graph):
 #For symmetry breaking, only the egdes a -> b, where a < b, are created.
 #However, the edge is referenced by both nodes
 def GetNearestNeighbourhoodSolution(graph):
+    global clock
+    clock.setStart(time.time())
     print("=========================================================")
     print("Instance: {} - Nearest Neighbour Solution Start".format(graph.length))
     activeNodes = graph.length
@@ -348,14 +460,13 @@ def GuidedLocalSearch(graph,params):
     hour,minute,second = getIntervalDuration(0,params["executionTimeLimit"])
     nHour,nMinute,nSecond = getIntervalDuration(0,params["noImprovementTimeLimit"])
     print("=========================================================")
-    print("Instance: {} - Strategy: {} - Improvement Type: {} Time Limit: {:0>2}:{:0>2}:{:05.2f}s - No Improvement Limit: {:0>2}:{:0>2}:{:05.2f}s".format(graph.length,params["strategy"].value,params["improvementType"].value,hour,minute,second,nHour,nMinute,nSecond))
+    print("Instance: {} | Strategy: {} | Improvement Type: {} | Local Search Procedure: {} | Time Limit: {:0>2}:{:0>2}:{:05.2f}s | No Improvement Limit: {:0>2}:{:0>2}:{:05.2f}s".format(graph.length,params["strategy"].value,params["improvementType"].value,params["localSearchProcedure"].__name__,hour,minute,second,nHour,nMinute,nSecond))
     print("=========================================================")
     print("=========================================================")
     print("Start Guided Local Search")
     currentSolutionSequence, currentObjFunction = params["initialSolutionFunction"](graph)
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
-    clock.setStart(time.time())
     randomRestartsCount =  0
     lastImprovemntClock = Clock()
     lastImprovemntClock.setStart(time.time())
@@ -364,7 +475,7 @@ def GuidedLocalSearch(graph,params):
 
     while not clock.isTimeOver(time.time(),params["executionTimeLimit"]):
         
-        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"])
+        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"],params["localSearchProcedure"])
         if(messageClock.isTimeOver(time.time(),30)):
             print("CURRENT Objective Value: {}".format(currentObjFunction))
             print("CANDIDATE Objective Value: {}".format(objFunction))
@@ -374,6 +485,8 @@ def GuidedLocalSearch(graph,params):
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
             print("NEW Objective Value: {}".format(currentObjFunction))
+            
+
             lastImprovemntClock.setStart(time.time())
 
         
@@ -453,7 +566,81 @@ def RandomSwaps(graph,pertubationSize = 0.15):
     print("Instance: {} - End Random Swaps".format(graph.length))
     print("=========================================================")
 
-#2-opt heuristic using Best Improvement or First Improvement Strategy
+
+#Swap- heuristic using Best Improvement or First Improvement Strategy
+def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
+    global clock
+    activatedNodes = {}
+    currentNode = graph.tourNodes.index(node)
+    swapNodes = []
+    currentRemovedEdges = [] 
+    currentAddedEdges = []
+    deltaCost = 0
+    currentDeltaCost = 0
+    i = (currentNode+2)%graph.length
+    end = ((currentNode-1)%graph.length)
+    while i!= end and not clock.isTimeOver(time.time(),clock.getStart()):
+        
+        removedEdges, addedEdges = GetTwoOptMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
+        deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
+
+        if(deltaCost < currentDeltaCost):
+            currentDeltaCost = deltaCost
+            swapNodes = []
+            swapNodes.append(graph.tourNodes[currentNode])
+            swapNodes.append(graph.tourNodes[i])
+            currentRemovedEdges = list(removedEdges) 
+            currentAddedEdges = list(addedEdges)
+            if improvementType == ImprovementType.First:
+                break
+                
+        i = (i+1)%graph.length
+
+    for newEdge in currentAddedEdges:
+        activatedNodes[newEdge.node1.id] = newEdge.node1
+        activatedNodes[newEdge.node2.id] = newEdge.node2
+        newEdge.ActivateNodes()
+
+    for oldEdge in currentRemovedEdges:
+        activatedNodes[oldEdge.node1.id] = oldEdge.node1
+        activatedNodes[oldEdge.node2.id] = oldEdge.node2
+        oldEdge.ActivateNodes()
+    return activatedNodes,currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
+
+#This method returns what edges must be added/removed in order to perform the 2-opt movement.
+#It does not change the tour. The tour is change only if an improvement is made by the swap
+#Check whether the edge exists in graph.edgesPool before creation.
+def GetTwoOptMove(graph,currentNode,swapNode):
+    removedEdges = []
+    addedEdges = []
+
+    #Remove the forward edges from both nodes
+    currentNodeEdge = currentNode.GetNextEdge(graph.length)
+    swapNodeEdge = swapNode.GetNextEdge(graph.length)
+    removedEdges.append(currentNodeEdge)
+    removedEdges.append(swapNodeEdge)
+    
+    currentNodeAdjacency = currentNode.GetAdjacentNodes(len(graph.tourNodes))
+    swapNodeAdjacency = swapNode.GetAdjacentNodes(len(graph.tourNodes))
+    #Swap edges
+    #Edge linking the current Node to the swap node
+    newCurrentEdge = graph.getEdgeFromPool(currentNode.id,swapNode.id)
+    if(newCurrentEdge is None):
+        newCurrentEdge = Edge(currentNode,swapNode)
+        graph.addEgdeinPool(newCurrentEdge)
+
+    #Edge linking the Foward Adjacent Node from Current node and the Foward Adjacent Node from swap node
+    newSwapEdge = graph.getEdgeFromPool(currentNodeAdjacency[1].id,swapNodeAdjacency[1].id)
+    if(newSwapEdge is None):
+        newSwapEdge = Edge(currentNodeAdjacency[1],swapNodeAdjacency[1])
+        graph.addEgdeinPool(newSwapEdge)
+
+    addedEdges.append(newCurrentEdge)
+    addedEdges.append(newSwapEdge)
+
+    return removedEdges,addedEdges
+
+#Swap- heuristic using Best Improvement or First Improvement Strategy
 def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
     activatedNodes = {}
     currentNode = graph.tourNodes.index(node)
@@ -462,8 +649,11 @@ def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
     currentAddedEdges = []
     deltaCost = 0
     currentDeltaCost = 0
-    for i in range(0,len(graph.tourNodes)):
+    i = 0
+    while i < graph.length and not clock.isTimeOver(time.time(),clock.getStart()):
+       
         if currentNode == i:
+            i+=1
             continue
         removedEdges, addedEdges = GetSwapMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
         deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
@@ -477,6 +667,7 @@ def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
             currentAddedEdges = list(addedEdges)
             if improvementType == ImprovementType.First:
                 break
+        i+=1
 
     for newEdge in currentAddedEdges:
         activatedNodes[newEdge.node1.id] = newEdge.node1
@@ -488,6 +679,7 @@ def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
         activatedNodes[oldEdge.node2.id] = oldEdge.node2
         oldEdge.ActivateNodes()
 
+    
     return activatedNodes,currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
 
 #This method returns what edges must be added/removed in order to perform the swap movement.
@@ -497,8 +689,8 @@ def GetSwapMove(graph,currentNode,swapNode):
     removedEdges = []
     addedEdges = []
     #Get Adjacent nodes in order to create the new edges
-    currentNodeAdjacency = currentNode.GetAdjacentNodes()
-    swapNodeAdjacency = swapNode.GetAdjacentNodes()
+    currentNodeAdjacency = currentNode.GetAdjacentNodes(len(graph.tourNodes))
+    swapNodeAdjacency = swapNode.GetAdjacentNodes(len(graph.tourNodes))
     
     #Include the current adjacent edges in the edges to be removed
     for key in currentNode.adjacentList:
@@ -535,7 +727,7 @@ def GetSwapMove(graph,currentNode,swapNode):
     return removedEdges,addedEdges
 
 #Fast Local Search main Method
-def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementType.First):
+def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementType.First,localSearchProcudure = None):
     global clock
     currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
@@ -546,16 +738,26 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
         del activeNeighbourhoods[key]
         node.active = False
         
-        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap(graph,node,alpha,improvementType)
+        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = localSearchProcudure(graph,node,alpha,improvementType)
         if(deltaCost < 0):
+            # print("Current Solution: {}".format(graph.GetTourIds()))
+            # print("Added Edges: {}".format([a.id for a in addedEdges]))
+            # print("Removed Edges: {}".format([a.id for a in removedEdges]))
+            if (localSearchProcudure.__name__ == "Swap"):
+                graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
+            else:
+                graph.SwapEdgesInTour(swapNodes[0],swapNodes[1])
+
             for oldEdge in removedEdges:
                 graph.deleteEdgeinTour(oldEdge)
 
             for newEdge in addedEdges:
                 graph.addEgdeinTour(newEdge)
-
-            graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
+                    
             currentSolutionSequence = graph.GetTourIds()
+            # print("New Solution: {}".format(graph.GetTourIds()))
+            # print("New Objective Value: {}".format(graph.tourLength))
+            # input("Press Enter...")
             currentObjValue = graph.tourLength
             for key in activatedNodes.keys():
                 activeNeighbourhoods[key] = activatedNodes[key]
@@ -586,10 +788,11 @@ def GetUtilValue(edge):
 
 
 #Evaluation of the move using Augmented Objective Function
-def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1):
+def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1,EvaluateManhatan = False):
 
     removed = 0
     added = 0
+
     for edge in removedEdges:
         removed = removed + edge.GetLength() + (alpha*edge.penalty)
 
