@@ -140,6 +140,12 @@ class Graph:
 class Strategy(Enum):
     Default = "Default"
     Alpha = "Alpha"
+    Beta = "Beta"
+    Gama = "Gama"
+
+class ImprovementType(Enum):
+    Best = "Best Improvement"
+    First = "First Improvement"
 
 class Clock():
     
@@ -180,7 +186,7 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Get The params for the problem instance
-    params = GetInstanceParameters(Strategy.Alpha,graph.length)
+    params = GetInstanceParameters(Strategy.Beta,graph.length)
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph,params)
@@ -211,6 +217,10 @@ def getIntervalDuration(start,end):
 def GetInstanceParameters(strategy,instanceSize):
     if strategy == Strategy.Alpha:
         return AlphaSetup(instanceSize)
+    elif strategy == Strategy.Beta:
+        return BetaSetup(instanceSize)
+    elif strategy == Strategy.Gama:
+        return GamaSetup(instanceSize)
     else: 
         return DefaultSetup(instanceSize)
 
@@ -219,13 +229,33 @@ def AlphaSetup(instanceSize):
     params["randomRestarts"] = True
     params["strategy"] = Strategy.Alpha
     params["perturbationSize"] = 0.2
-    params["perturbationIncrement"] = 1.05
-    params["initialSolution"] = "Nearest" if instanceSize < 2000 else "Default"
+    params["perturbationIncrement"] = 1.5
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
+    return params
+
+def BetaSetup(instanceSize):
+    params = DefaultSetup(instanceSize)
+    params["randomRestarts"] = True
+    params["strategy"] = Strategy.Beta
+    params["perturbationSize"] = 0.2
+    params["perturbationIncrement"] = 1.5
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
+    return params
+
+def GamaSetup(instanceSize):
+    params = DefaultSetup(instanceSize)
+    params["randomRestarts"] = True
+    params["strategy"] = Strategy.Gama
+    params["perturbationSize"] = 0.2
+    params["perturbationIncrement"] = 1.5
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
+    params["noImprovementTimeLimit"] = 10*instanceSize if 10*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["improvementType"] = ImprovementType.Best
     return params
 
 def DefaultSetup(instanceSize):
     params = {}
-    params["firstImprovement"] = True
+    params["improvementType"] = ImprovementType.First
     params["executionTimeLimit"] = getTimeInSeconds(4,30,0) #4 hours and 30 minutes of time limit
     params["beta"] = 0.5 #1/8 <= beta <= 1/2
     params["randomRestartsLimit"] = 2
@@ -235,7 +265,7 @@ def DefaultSetup(instanceSize):
     params["randomRestarts"] = False
     params["strategy"] = Strategy.Default
     params["earlyStopping"] = True
-    params["initialSolution"] = "Default"
+    params["initialSolutionFunction"] = GetInitialSolution
 
     return params
 ###############################
@@ -318,14 +348,11 @@ def GuidedLocalSearch(graph,params):
     hour,minute,second = getIntervalDuration(0,params["executionTimeLimit"])
     nHour,nMinute,nSecond = getIntervalDuration(0,params["noImprovementTimeLimit"])
     print("=========================================================")
-    print("Strategy: {} - Instance: {} - Time Limit: {:0>2}:{:0>2}:{:05.2f}s - No Improvement Limit: {:0>2}:{:0>2}:{:05.2f}s".format(params["strategy"],graph.length,hour,minute,second,nHour,nMinute,nSecond))
+    print("Instance: {} - Strategy: {} - Improvement Type: {} Time Limit: {:0>2}:{:0>2}:{:05.2f}s - No Improvement Limit: {:0>2}:{:0>2}:{:05.2f}s".format(graph.length,params["strategy"].value,params["improvementType"].value,hour,minute,second,nHour,nMinute,nSecond))
     print("=========================================================")
     print("=========================================================")
     print("Start Guided Local Search")
-    if(params["initialSolution"]=="Nearest"):
-        currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
-    if(params["initialSolution"]=="Default"):
-        currentSolutionSequence, currentObjFunction = GetInitialSolution(graph)
+    currentSolutionSequence, currentObjFunction = params["initialSolutionFunction"](graph)
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
     clock.setStart(time.time())
@@ -337,7 +364,7 @@ def GuidedLocalSearch(graph,params):
 
     while not clock.isTimeOver(time.time(),params["executionTimeLimit"]):
         
-        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["firstImprovement"])
+        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"])
         if(messageClock.isTimeOver(time.time(),30)):
             print("CURRENT Objective Value: {}".format(currentObjFunction))
             print("CANDIDATE Objective Value: {}".format(objFunction))
@@ -387,16 +414,26 @@ def RandomSwaps(graph,pertubationSize = 0.15):
     print("=========================================================")
     print("Instance: {} - Start Random Swaps".format(graph.length))
     print("Perturbation Size: {}".format(pertubationSize))
+    random.seed(0)
     limit = int(pertubationSize*graph.length)
     i=0
+    positions = list(range(0,graph.length))
+    activeNodes = dict((el,True) for el in positions)
+
     while i < limit: 
-        pos1 = random.randint(0,graph.length-1)
-        pos2 = random.randint(0,graph.length-1)
-        
-        while pos1 == pos2:
-            pos2 = random.randint(0,graph.length-1)
- 
-        removedEdges, addedEdges = GetMove(graph,graph.tourNodes[pos1],graph.tourNodes[pos2])
+        val1 = False
+        val2 = False
+        while not val1 and not val2:
+            pos1=-1
+            pos2=-1
+            while pos1 == pos2:
+                pos1,val1 =  random.choice(list(activeNodes.items()))
+                pos2,val2 =  random.choice(list(activeNodes.items()))
+
+        activeNodes[pos1] = False
+        activeNodes[pos2] = False
+
+        removedEdges, addedEdges = GetSwapMove(graph,graph.tourNodes[pos1],graph.tourNodes[pos2])
         for oldEdge in removedEdges:
             graph.deleteEdgeinTour(oldEdge)
             oldEdge.ActivateNodes()
@@ -417,7 +454,7 @@ def RandomSwaps(graph,pertubationSize = 0.15):
     print("=========================================================")
 
 #2-opt heuristic using Best Improvement or First Improvement Strategy
-def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
+def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
     activatedNodes = {}
     currentNode = graph.tourNodes.index(node)
     swapNodes = []
@@ -425,16 +462,10 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
     currentAddedEdges = []
     deltaCost = 0
     currentDeltaCost = 0
-    #NOTE - THE LOOP AFECTS THE SOLUTION. DIFFERENT LOOPS LEAD TO DIFFERENT OBJECTIVE WITH THE SAME PARAMETERS
-    # loopValues = []
-    # loopValues.extend(range(currentNode+1,len(graph.tourNodes)))
-    # loopValues.extend(range(0,currentNode))
-    # for i in loopValues:
-    # for i in range(currentNode+1,len(graph.tourNodes)):
     for i in range(0,len(graph.tourNodes)):
         if currentNode == i:
             continue
-        removedEdges, addedEdges = GetMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
+        removedEdges, addedEdges = GetSwapMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
         deltaCost = EvaluateMovePenalized(removedEdges,addedEdges,alpha)
 
         if(deltaCost < currentDeltaCost):
@@ -444,7 +475,7 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
             swapNodes.append(graph.tourNodes[i])
             currentRemovedEdges = list(removedEdges) 
             currentAddedEdges = list(addedEdges)
-            if fisrtImprovement == True:
+            if improvementType == ImprovementType.First:
                 break
 
     for newEdge in currentAddedEdges:
@@ -462,7 +493,7 @@ def Swap2Opt(graph,node,alpha=1,fisrtImprovement=True):
 #This method returns what edges must be added/removed in order to perform the swap movement.
 #It does not change the tour. The tour is change only if an improvement is made by the swap
 #Check whether the edge exists in graph.edgesPool before creation.
-def GetMove(graph,currentNode,swapNode):
+def GetSwapMove(graph,currentNode,swapNode):
     removedEdges = []
     addedEdges = []
     #Get Adjacent nodes in order to create the new edges
@@ -504,7 +535,7 @@ def GetMove(graph,currentNode,swapNode):
     return removedEdges,addedEdges
 
 #Fast Local Search main Method
-def FastLocalSearch(graph,alpha,excutionTimeLimit,firstImprovement = True):
+def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementType.First):
     global clock
     currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
@@ -515,7 +546,7 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,firstImprovement = True):
         del activeNeighbourhoods[key]
         node.active = False
         
-        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap2Opt(graph,node,alpha,firstImprovement)
+        activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = Swap(graph,node,alpha,improvementType)
         if(deltaCost < 0):
             for oldEdge in removedEdges:
                 graph.deleteEdgeinTour(oldEdge)
