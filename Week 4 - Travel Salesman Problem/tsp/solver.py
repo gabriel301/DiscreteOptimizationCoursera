@@ -141,6 +141,22 @@ class Strategy(Enum):
     Default = "Default"
     Alpha = "Alpha"
 
+class Clock():
+    
+    def __init__ (self):
+        self.start = None
+
+    def isTimeOver(self,end,duration):
+        return end-self.start >= duration
+
+    def setStart(self,start):
+        self.start = start
+
+    def getStart(self):
+        return self.start
+
+##Global Variable to monitor execution time
+clock = Clock()
 
 #######################
 #    Main Method      #
@@ -164,7 +180,7 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Get The params for the problem instance
-    params = GetInstanceParameters(Strategy.Default,graph.length)
+    params = GetInstanceParameters(Strategy.Alpha,graph.length)
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph,params)
@@ -294,6 +310,7 @@ def GetNearestNeighbourhoodSolution(graph):
 
 #Guided Local Search Main Method
 def GuidedLocalSearch(graph,params):
+    global clock
     hour,minute,second = getIntervalDuration(0,params["executionTimeLimit"])
     nHour,nMinute,nSecond = getIntervalDuration(0,params["noImprovementTimeLimit"])
     print("=========================================================")
@@ -304,22 +321,29 @@ def GuidedLocalSearch(graph,params):
     currentSolutionSequence, currentObjFunction = GetNearestNeighbourhoodSolution(graph) 
     print("Current Objective Value: {}".format(currentObjFunction))
     alpha = 0
-    lastImprovement = 0
-    executionStart = time.time()
+    clock.setStart(time.time())
     randomRestartsCount =  0
+    lastImprovemntClock = Clock()
+    lastImprovemntClock.setStart(time.time())
+    messageClock = Clock()
+    messageClock.setStart(time.time())
 
-    while (time.time() - executionStart) < params["executionTimeLimit"]:
+    while not clock.isTimeOver(time.time(),params["executionTimeLimit"]):
         
-        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["firstImprovement"])
+        solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["firstImprovement"])
+        if(messageClock.isTimeOver(time.time(),30)):
+            print("CURRENT Objective Value: {}".format(currentObjFunction))
+            print("CANDIDATE Objective Value: {}".format(objFunction))
+            messageClock.setStart(time.time())
 
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
-            print("Current Objective Value: {}".format(currentObjFunction))
-            lastImprovement = time.time()
+            print("NEW Objective Value: {}".format(currentObjFunction))
+            lastImprovemntClock.setStart(time.time())
 
         
-        if(time.time()-lastImprovement >= params["noImprovementTimeLimit"]):
+        if(lastImprovemntClock.isTimeOver(time.time(),params["noImprovementTimeLimit"])):
         #Random Pertubation Restart
             if  params["randomRestarts"]:
                     if(randomRestartsCount < params["randomRestartsLimit"]):
@@ -328,12 +352,12 @@ def GuidedLocalSearch(graph,params):
                             perturbationMultiplier = 1
                         RandomSwaps(graph,perturbationMultiplier*params["perturbationSize"])
                         randomRestartsCount +=1
-                        lastImprovement = time.time()
+                        lastImprovemntClock.setStart(time.time())
                         alpha = 0
                         continue 
 
             if  params["earlyStopping"]:
-                    hour,minute,second = getIntervalDuration(lastImprovement,time.time())
+                    hour,minute,second = getIntervalDuration(lastImprovemntClock.getStart(),time.time())
                     print("No improvement after {:0>2}:{:0>2}:{:05.2f}s. Stopping execution.".format(hour,minute,second))
                     break
 
@@ -473,12 +497,12 @@ def GetMove(graph,currentNode,swapNode):
     return removedEdges,addedEdges
 
 #Fast Local Search main Method
-def FastLocalSearch(graph,alpha,firstImprovement = True):
+def FastLocalSearch(graph,alpha,excutionTimeLimit,firstImprovement = True):
+    global clock
     currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
     currentObjValue = graph.tourLength
-    while len(activeNeighbourhoods.keys()) > 0:
-
+    while len(activeNeighbourhoods.keys()) > 0 and not clock.isTimeOver(time.time(),excutionTimeLimit):
         key = (next(iter(activeNeighbourhoods))) 
         node = activeNeighbourhoods[key]
         del activeNeighbourhoods[key]
