@@ -329,7 +329,6 @@ def DeltaSetup(instanceSize):
     params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
-    params["executionTimeLimit"] = getTimeInSeconds(1,0,0) #1 hour of time limit
     params["randomRestarts"] = True
     params["perturbationSize"] = 0.2
     params["perturbationIncrement"] = 1.5
