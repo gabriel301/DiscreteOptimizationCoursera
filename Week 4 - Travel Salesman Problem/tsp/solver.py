@@ -190,11 +190,6 @@ class Graph:
 
         self.tourNodes = newRoute
 
-    def PrintTour(self):
-        nodeIds = []
-        for node in self.tourNodes:
-            nodeIds.append(node.id)
-        print(nodeIds)
 
     def GetTourIds(self):
         nodeIds = []
@@ -347,8 +342,8 @@ def DeltaSetup(instanceSize):
 
 def EpsilonSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["executionTimeLimit"] = getTimeInSeconds(4,50,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(2,30,0)
+    params["executionTimeLimit"] = getTimeInSeconds(4,58,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(4,58,0)
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
     params["strategy"] = Strategy.Epsilon
@@ -402,7 +397,7 @@ def GetInitialSolution(graph):
 #Get the Initial Solution using the Nearest Neighbourhood Heuristic
 #For symmetry breaking, only the egdes a -> b, where a < b, are created.
 #However, the edge is referenced by both nodes
-#For better performance (both time and memory), the manhatam distance heuristic is used. Thus, it is an approximation of the Nearest NeighbourHood
+#For better performance (both time and memory), the manhatan distance heuristic is used. Thus, it is an approximation of the Nearest NeighbourHood
 def GetNearestNeighbourhoodSolution(graph):
     global clock
     clock.setStart(time.time())
@@ -445,8 +440,7 @@ def GetNearestNeighbourhoodSolution(graph):
         graph.addNodeinTour(currentNode)
         graph.addEgdeinPool(bestEdge)       
         activeNodes-=1
-        currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node2
-        
+        currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node
 
     print("Edges in Pool: {}".format(len(graph.edgesPool)))
     print("Tour Length: {}".format(graph.tourLength))
@@ -483,15 +477,20 @@ def GuidedLocalSearch(graph,params):
     while not clock.isTimeOver(time.time(),params["executionTimeLimit"]):
         
         solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"],params["localSearchProcedure"])
-        if(messageClock.isTimeOver(time.time(),30)):
-            print("CURRENT Objective Value: {}".format(currentObjFunction))
-            print("CANDIDATE Objective Value: {}".format(objFunction))
-            messageClock.setStart(time.time())
+        
+        # if(messageClock.isTimeOver(time.time(),30)):
+        #     print("CURRENT Objective Value: {}".format(currentObjFunction))
+        #     print("CANDIDATE Objective Value: {}".format(objFunction))
+        #     messageClock.setStart(time.time())
 
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
             print("NEW Objective Value: {}".format(currentObjFunction))
+            start = lastImprovemntClock.getStart()
+            end = time.time()
+            hour,min,sec = getIntervalDuration(start,end)
+            print("Time Elapsed since last improvement: {:0>2}:{:0>2}:{:05.2f}s".format(hour,min,sec))
             lastImprovemntClock.setStart(time.time())
             egdesUsedforSolution = len(graph.edgesPool)
             print("Edges in Pool: {}".format(len(graph.edgesPool)))
