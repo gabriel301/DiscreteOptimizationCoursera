@@ -253,7 +253,16 @@ def solve_it(input_data):
         graph.addNode(Node(i-1,float(parts[0]),float(parts[1])))
 
     #Get The params for the problem instance
-    params = GetInstanceParameters(Strategy.Delta,graph.length)
+    if(graph.length < 200): 
+        params = GetInstanceParameters(Strategy.Beta,graph.length)
+    elif(graph.length < 500): 
+        params = GetInstanceParameters(Strategy.Gamma,graph.length)
+    elif(graph.length < 1000): 
+        params = GetInstanceParameters(Strategy.Alpha,graph.length)
+    elif(graph.length <10000): 
+        params = GetInstanceParameters(Strategy.Delta,graph.length)
+    else:
+        params = GetInstanceParameters(Strategy.Epsilon,graph.length)
 
     #Guided Fast Local Search (GFLS)
     solutionSequence,objValue = GuidedLocalSearch(graph,params)
@@ -299,51 +308,51 @@ def GetInstanceParameters(strategy,instanceSize):
 def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Alpha
-    params["perturbationSize"] = 0.2
-    params["perturbationIncrement"] = 1.5
+    params["executionTimeLimit"] = getTimeInSeconds(1,30,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,30,0)
+    params["localSearchProcedure"] = TwoOpt
+    params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
     return params
 
 def BetaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["randomRestarts"] = True
+    params["executionTimeLimit"] = getTimeInSeconds(0,5,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,0,30)
+    params["localSearchProcedure"] = TwoOpt
+    params["improvementType"] = ImprovementType.Best
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
     params["strategy"] = Strategy.Beta
-    params["perturbationSize"] = 0.2
-    params["perturbationIncrement"] = 1.5
-    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
     return params
 
 def GammaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["randomRestarts"] = False
     params["strategy"] = Strategy.Gamma
-    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["executionTimeLimit"] = getTimeInSeconds(0,30,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,10,0)
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
     return params
 
 def DeltaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Delta
-    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
-    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["executionTimeLimit"] = getTimeInSeconds(2,30,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,45,0)
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
-    params["randomRestarts"] = True
-    params["perturbationSize"] = 0.2
-    params["perturbationIncrement"] = 1.5
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
     return params
 
 def EpsilonSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["randomRestarts"] = True
-    params["strategy"] = Strategy.Epsilon
-    params["perturbationSize"] = 0.2
-    params["perturbationIncrement"] = 1.5
-    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution if instanceSize < 2000 else GetInitialSolution
-    params["noImprovementTimeLimit"] = 6*instanceSize if 6*instanceSize < 0.3*params["executionTimeLimit"] else 0.3*params["executionTimeLimit"]
+    params["executionTimeLimit"] = getTimeInSeconds(4,50,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(2,30,0)
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
+    params["strategy"] = Strategy.Epsilon
+    params["initialSolutionFunction"] = GetNearestNeighbourhoodSolution
     return params
 
 def DefaultSetup(instanceSize):
@@ -390,19 +399,24 @@ def GetInitialSolution(graph):
     print("=========================================================")
     return graph.GetTourIds(),graph.tourLength
 
-#Get the Initial Solution using the Nearest Neighbourhood Heiristic
+#Get the Initial Solution using the Nearest Neighbourhood Heuristic
 #For symmetry breaking, only the egdes a -> b, where a < b, are created.
 #However, the edge is referenced by both nodes
+#For better performance (both time and memory), the manhatam distance heuristic is used. Thus, it is an approximation of the Nearest NeighbourHood
 def GetNearestNeighbourhoodSolution(graph):
     global clock
     clock.setStart(time.time())
+    start = time.time()
     print("=========================================================")
     print("Instance: {} - Nearest Neighbour Solution Start".format(graph.length))
     activeNodes = graph.length
     currentNode = graph.nodes[0]
+    bestManhatanEdgeDistance = None
+    bestNode = None
     while activeNodes > 0:
-        bestEdge = None
+        bestManhatanEdgeDistance = None
         currentNode.active = False
+        bestNode = None
         for j in range(0, graph.length):
             
             if(graph.nodes[j].active == False):
@@ -411,32 +425,37 @@ def GetNearestNeighbourhoodSolution(graph):
             if(currentNode.id == graph.nodes[j].id):
                 continue
 
-            edge = Edge(currentNode,graph.nodes[j]) 
-            graph.addEgdeinPool(edge)
+            #Manhatan Distance Checking
+            newEdgeManhatenDistance = math.fabs(currentNode.x-graph.nodes[j].x) + math.fabs(currentNode.y-graph.nodes[j].y)
 
-            if bestEdge is None:
-                bestEdge = edge
+            if bestManhatanEdgeDistance is None:
+                bestManhatanEdgeDistance = newEdgeManhatenDistance
+                bestNode = graph.nodes[j]
             else:
-                if(bestEdge.GetLength() > edge.GetLength()):
-                    del bestEdge
-                    bestEdge = edge
-        gc.collect()
-        if(bestEdge is None):
-            lastNode = graph.tourNodes[0]
-            bestEdge = Edge(currentNode,lastNode)
-            graph.addEgdeinPool(bestEdge)
+                if(bestManhatanEdgeDistance > newEdgeManhatenDistance):
+                    bestManhatanEdgeDistance = newEdgeManhatenDistance
+                    bestNode = graph.nodes[j]
 
+        if(bestManhatanEdgeDistance is None):
+            bestNode = graph.tourNodes[0]
+            bestManhatanEdgeDistance = math.fabs(currentNode.x-graph.nodes[0].x) + math.fabs(currentNode.y-graph.nodes[0].y)
+  
+        bestEdge = Edge(currentNode,bestNode)
         graph.addEgdeinTour(bestEdge)
-        graph.addNodeinTour(currentNode)       
+        graph.addNodeinTour(currentNode)
+        graph.addEgdeinPool(bestEdge)       
         activeNodes-=1
         currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node2
         
-        
+
+    print("Edges in Pool: {}".format(len(graph.edgesPool)))
     print("Tour Length: {}".format(graph.tourLength))
 
     for j in range(0, graph.length):
         graph.nodes[j].active = True
-
+    end = time.time()
+    h,m,s = getIntervalDuration(start,end)
+    print("Execution Time: {:0>2}:{:0>2}:{:05.2f}s".format(h,m,s))
     print("Instance: {} - Nearest Neighbour Solution End".format(graph.length))
     print("=========================================================")
     return graph.GetTourIds(),graph.tourLength
@@ -457,6 +476,7 @@ def GuidedLocalSearch(graph,params):
     randomRestartsCount =  0
     lastImprovemntClock = Clock()
     lastImprovemntClock.setStart(time.time())
+    egdesUsedforSolution = len(graph.edgesPool)
     messageClock = Clock()
     messageClock.setStart(time.time())
 
@@ -473,6 +493,8 @@ def GuidedLocalSearch(graph,params):
             currentSolutionSequence = solutionSequence
             print("NEW Objective Value: {}".format(currentObjFunction))
             lastImprovemntClock.setStart(time.time())
+            egdesUsedforSolution = len(graph.edgesPool)
+            print("Edges in Pool: {}".format(len(graph.edgesPool)))
 
         
         if(lastImprovemntClock.isTimeOver(time.time(),params["noImprovementTimeLimit"])):
@@ -506,6 +528,7 @@ def GuidedLocalSearch(graph,params):
     print("=========================================================")
     hour,min,sec = getIntervalDuration(clock.getStart(),lastImprovemntClock.getStart())
     print("Best Solution found in {:0>2}:{:0>2}:{:05.2f}s of execution.".format(hour,min,sec))
+    print("Number of Edges Generated until best solution is found: {}".format(egdesUsedforSolution))
     return currentSolutionSequence, currentObjFunction
 
 
@@ -600,6 +623,18 @@ def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
 def GetTwoOptMove(graph,currentNode,swapNode):
     removedEdges = []
     addedEdges = []
+    currentNodeAdjacency = currentNode.GetAdjacentNodes(len(graph.tourNodes))
+    swapNodeAdjacency = swapNode.GetAdjacentNodes(len(graph.tourNodes))
+    
+    #Manhatan Distance Checking
+    #For better performance (both time and memory), the manhatam distance heuristic is used
+    currentManhatamDeletedDistance = math.fabs(currentNode.x-currentNodeAdjacency[1].x) + math.fabs(currentNode.y-currentNodeAdjacency[1].y)
+    swapManhatamDeletedDistance = math.fabs(swapNode.x-swapNodeAdjacency[1].x) + math.fabs(swapNode.y-swapNodeAdjacency[1].y)
+    currentManhatamAddedDistance = math.fabs(currentNode.x-swapNode.x) + math.fabs(currentNode.y-swapNode.y)
+    swapManhatamAddedDistance = math.fabs(currentNodeAdjacency[1].x-swapNodeAdjacency[1].x) + math.fabs(currentNodeAdjacency[1].y-swapNodeAdjacency[1].y)
+    
+    if(currentManhatamDeletedDistance < currentManhatamAddedDistance and swapManhatamDeletedDistance < swapManhatamAddedDistance):
+        return removedEdges,addedEdges
 
     #Remove the forward edges from both nodes
     currentNodeEdge = currentNode.GetNextEdge(graph.length)
@@ -607,8 +642,7 @@ def GetTwoOptMove(graph,currentNode,swapNode):
     removedEdges.append(currentNodeEdge)
     removedEdges.append(swapNodeEdge)
     
-    currentNodeAdjacency = currentNode.GetAdjacentNodes(len(graph.tourNodes))
-    swapNodeAdjacency = swapNode.GetAdjacentNodes(len(graph.tourNodes))
+    
     #Swap edges
     #Edge linking the current Node to the swap node
     newCurrentEdge = graph.getEdgeFromPool(currentNode.id,swapNode.id)
