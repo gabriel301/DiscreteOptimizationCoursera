@@ -24,50 +24,53 @@ import datetime
 # Data Structures Definitions     #
 ###################################
 
-#This is structure is an attemp to avoid calculating all possible edges to the problem in one shot, ie, precompute the distance matrix
-#The idea is store only the edges that are part of the current solution or edges that have been a part of one solution.
-#This is necessary due the penalties that the Guided Local Search attributes to edges.
-#Thus, edges (moves) that not improve the current solution are calculated (for evaluation), but discarted since no penalty will be attributed to them.
-#Altough it can save memory, it increase the computation time, since some edges might be calculated more than once while the algorithm is running.
+#   This is structure is an attemp to avoid calculating all possible edges to the problem in one shot, ie, precompute the distance matrix and thus, save memory (be memory efficient)
+#   The idea is store only the edges that are part of the current solution or edges that have been a part of one solution.
+#   This is necessary due the penalties that the Guided Local Search attributes to edges.
+#   Thus, edges (moves) that not improve the current solution are calculated (for evaluation), but discarted since no penalty will be attributed to them.
+#   Altough it can save memory, it might increase the computation time, since creating one edge is more expensive than only querying a value in a matrix
 class Edge:
     def __init__(self,p1,p2):
-        self.length = -1 #Distance between node 1 and node 2
-        self.penalty = 0 #Guided local search penalty
+        self.length = -1 #  Distance between node 1 and node 2
+        self.penalty = 0 #  Guided local search penalty
         
-        # node1.id < node2.id for symmetry breaking. This reduces the number of edges in half
-        #Eg: Edge 1->2 is the same as Edge 2->1 in this problem. Thus, we only store the edge
-        #2->1 and reference this edge in the both nodes
+        #   node1.id < node2.id for symmetry breaking. This reduces the number of edges in half
+        #   Eg: Edge 1->2 is the same as Edge 2->1 in this problem. Thus, we only store the edge
+        #   1->2 and reference this edge in the both nodes
         if p1.id < p2.id:
-            self.node1 = p1 #Node 1
-            self.node2 = p2 #node 2 
+            self.node1 = p1 #   Node 1
+            self.node2 = p2 #   node 2 
         else:
-            self.node1 = p2 #Node 1
-            self.node2 = p1 #node 2 
-        self.id = str(self.node1.id)+"-"+str(self.node2.id)
-        self.util = -1 #Guided Local Search utility function value
+            self.node1 = p2 #   Node 1
+            self.node2 = p1 #   node 2 
 
+        self.id = str(self.node1.id)+"-"+str(self.node2.id)
+        self.util = -1 #    Guided Local Search utility function value
+
+    #   Calculate the length in case it was not calculated before and store it in the local variable. Otherwise, just return the stored value
     def GetLength(self):
         if self.length == -1:
             self.length = math.sqrt((self.node1.x - self.node2.x)**2 + (self.node1.y - self.node2.y)**2)
         return self.length
 
-    #Activate the points (nodes) that represent sub-neighbourhoods
+    #   Activate the points (nodes) that are in the both ends os the edge
+    #   In this case, the nodes represent sub-neighbourhoods for the problem
     def ActivateNodes(self):
         self.node1.active = True
         self.node2.active = True
 
 class Node:
     def __init__(self,id = -1,x=0.0,y=0.0):
-        self.x = x #Euclidean X coordinate
-        self.y = y #Euclidean Y coordinate
-        self.id = id #Node ID
-        self.adjacentList = {} #Edges that are adjacent to this node - Store the edge because once it is calculated, we do not need to computate it again
-        self.active = True #Active flag for the Fast Local Search procedure
-        self.tourPos = -1 #the position of the node in the Tour List
+        self.x = x #    Euclidean X coordinate
+        self.y = y #    Euclidean Y coordinate
+        self.id = id #  Node ID
+        self.adjacentList = {} #    Edges that are adjacent to this node - Store the edge because once it is calculated, we do not need to computate it again
+        self.active = True #    Active flag for the Fast Local Search procedure
+        self.tourPos = -1 # the position of the node in the Tour List
     
-    #Return the adjacent Nodes of a node
-    #List[0] = Previous Node
-    #List[1] = Next Node
+    #   Return the adjacent Nodes of a node
+    #   List[0] = Previous Node
+    #   List[1] = Next Node
     def GetAdjacentNodes(self,tourSize):
         adjacentNodes = [None,None]
         aux = []
@@ -75,6 +78,7 @@ class Node:
             node = self.adjacentList[key].node1 if self.adjacentList[key].node1.id != self.id else self.adjacentList[key].node2
             aux.append(node)
 
+        #   In case the node is at the ends of the Tour List, the calculation is reversed than when the node is not at the ends
         if(self.tourPos == 0 or self.tourPos == tourSize-1):
             if self.tourPos - aux[0].tourPos < self.tourPos - aux[1].tourPos:
                 adjacentNodes[0] = aux[0]
@@ -92,6 +96,8 @@ class Node:
 
         return adjacentNodes
     
+    #   Get the Foward edge of the node
+    #   Eg. If the node is 2, and the edges are 1<->2<->3, return the 2<->3 edge 
     def GetNextEdge(self,tourSize):
 
         nexNode = self.GetAdjacentNodes(tourSize)[1]
@@ -100,6 +106,8 @@ class Node:
                 return self.adjacentList[key]
         return None        
 
+    #   Get the previous edge of the node
+    #   Eg. If the node is 2, and the edges are 1<->2<->3, return the 1<->2 edge 
     def GetPreviousEdge(self,tourSize):
         prevNode = self.GetAdjacentNodes(tourSize)[0]
         for key in self.adjacentList:
@@ -109,34 +117,37 @@ class Node:
 
 class Graph:
     def __init__ (self):
-        self.nodes = [] #All nodes of the graph
-        self.tourEdges = {} #Edges of the current solution
-        self.tourNodes = []
-        self.length = 0 #Number of nodes of the graph
-        self.tourLength = 0 #Length of the current tour
-        self.edgesPool ={} #Stores all edges that have been used in a solution
+        self.nodes = [] #   All nodes of the graph
+        self.tourEdges = {} #   Edges of the current solution
+        self.tourNodes = [] #   List that stores the visiting sequence of the nodes in the tour
+        self.length = 0 #   Number of nodes of the graph
+        self.tourLength = 0 #   Length tour path
+        self.edgesPool ={} #    Stores all edges that have been checked by the local search procedure. 
+                           #Thus, it is not necessary to compute them again if they are evaluated more than onde, saving processing time
 
+    #   Adds a Node in the graph
     def addNode (self,node):
         self.nodes.append(node)
         self.length = self.length+1
 
-    def addEgdeinTour(self,edge):
-        
+    #   Adds and edge in the current tour
+    def addEgdeinTour(self,edge): 
         self.tourEdges[edge.id] = edge
         self.nodes[edge.node1.id].adjacentList[edge.id] = edge
         self.nodes[edge.node2.id].adjacentList[edge.id] = edge
         self.tourLength = self.tourLength + edge.GetLength()
         
-
+    #   Adds an edge in the Edge's Pool
     def addEgdeinPool(self,edge):
         self.edgesPool[edge.id] = edge
 
+    #   Adds a node in the tour
     def addNodeinTour(self,node):
          self.tourNodes.append(node)
          node.tourPos = len(self.tourNodes)-1
 
-    def deleteEdgeinTour(self,edge):
-        
+    #   Delete an edge from the tour and from the adjacent list of the reffered nodes
+    def deleteEdgeinTour(self,edge):      
         distance = edge.GetLength()
         self.tourLength = self.tourLength - distance
         id = edge.id
@@ -145,6 +156,9 @@ class Graph:
         del self.tourEdges[id]
         gc.collect()
 
+    #   Get and edge from the Edges' Pool, or return None if the edge is not found.
+    #   All edges Ids are in the for node1.id-node2.id where node1.id<node2.id
+    #   Eg. If the query is by node1.id = 2, and node 2.id = 1, the Edge queried will be 1<->2
     def getEdgeFromPool(self,nodeId1,nodeId2):
         if (nodeId1 < nodeId2):
             key = str(nodeId1)+"-"+str(nodeId2)
@@ -159,44 +173,95 @@ class Graph:
             else:
                 return None
 
+    #   Swap 2 nodes in the tour.
+    #   Used by the Swap Heuristic Function
     def SwapNodesInTour(self,node1,node2):
         a, b = self.tourNodes.index(node1), self.tourNodes.index(node2)
         self.tourNodes[b].tourPos, self.tourNodes[a].tourPos = self.tourNodes[a].tourPos, self.tourNodes[b].tourPos
         self.tourNodes[b], self.tourNodes[a] = self.tourNodes[a], self.tourNodes[b]
 
-    def SwapEdgesInTour(self,node1,node2):
+    #   Rearrange the tour sequence to reflect an edge exchange. Used by the 2-Opt Heuristic Function
+    #   How it Works: In the 2-Opt Iteration Loop, one node is select to be the "Base" node, and then we loop over all edges of the tour 
+    #   from this base node. Eg. Supose the tour is 1-6-4-2-3-5. If the Base Node is 4, the we fix the forward edge (4,2) to be removed 
+    #   and iterate over the edges (3,5),(5,1), and (1,6), removing them (together with the base edge (4,2)) and evaluating the cost of adding new edges.
+    #   For iterating over the edges, we actually iterate over the nodes in the tour (in the sequence they appear in the tour), starting 2 positions ahead from the base node position.
+    #   In the code, this iterated node is called swapNode.
+    #   In this example, we will iterate over nodes 3,5,1. We stop when the swapNode node is adjacent to the current node,ie node 6.
+    #   (In this case, we only remove the forward edges, then, iterating over the previous adjacent node of the base node would eliminate the previous base node edge).
+    
+    #   Supose that the best move is to remove the edges (4,2) and (3,5) and to add the edges (3,4) and (2,5) (ie, our swap node is 3).
+    #   Note that the new edges are built by linking the Base node (4) to the swap node (3) and the foward adjacent node of the base node (2) and the foward adjacent node
+    #   of the swap node (5).
+    #   
+    #   So, the 2-opt works as follows:
+    #       1) Remove edges (4,2) and (3,5) :
+    #           Previous: 1-6-4-2-3-5
+    #           After: 1-6-4   2-3   5
+    #
+    #       2) Link the Base node (4) to the swap Node (3):
+    #           Previous: 1-6-4   2-3   5
+    #           After: 1-6-4-3-2   5
+    #
+    #       3) Link the forward adjacent node of Base Node (2) to the forward adjacent node of the swap node (5)
+    #           Previous: 1-6-4-3-2   5
+    #           After: 1-6-4-3-2-5
+    #
+    #       Thus, the new tour is  1-6-4-3-2-5.
+    #   Note that the difference between the previous tour (1-6-4-2-3-5) and the new tour (1-6-4-3-2-5) is that the nodes between the base node (4) and the forward adjacent node of the swap node (5)
+    #   are in the reverse order.
+    #   
+    #   After including the new edges in the tour and removing the old ones, we need to rearrange the sequence of the nodes in the tour. The method above does the job.
+    #   It works as follows (Using the same example above):
+    #   1) Copy to a new array the some nodes in the current order:
+    #       1.1) Set the inicial position as the position of the adjacent node of the swap node (5). The position is 5 (0 based index array)
+    #       1.2) Set the Final Position for the base node (4) (we must copy it as well). The position is 2.
+    #       1.3) Copy into a new list elements from the inicial position (5) to the final position (2). For getting the circular reference working, we use the modulo opeartor.
+    #            Copy Result: 5-1-6-4
+    #   2) Append to this new array the remaining nodes in reverse order
+    #      2.1) Set the initial position as the position of the swap node (3). This position is 4. We add the length of the graph (total number of nodes) 
+    #           in order to avoid to get negative numbers in the modulo operation
+    #      2.2) Set the Final Position for the forward adjacent node of base node (2) (we must copy it as well). The position is 3
+    #      2.3) Appent to the new route elements from the inicial position (4) to the final position (3).
+    #            Copy Result: 5-1-6-4-3-2
+    #   Once the list is circular, the tour 5-1-6-4-3-2 is the same as 1-6-4-3-2-5 (they are symmetric). We can take leverage of this to make this position exchange
+    #   easier to implement.
+    #   The final step is attribute the right position for each node in the list
 
+    def SwapEdgesInTour(self,node1,node2):    
         swapNextPos = node2.GetAdjacentNodes(len(self.tourNodes))[1]
         newRoute = []
 
         i = (swapNextPos.tourPos)%self.length
         end = (node1.tourPos+1)%self.length
 
-        #Copy the first part
+        #   Copy the first part
         while i != end:
             newRoute.append(self.tourNodes[i])
             i = (i+1)%self.length
 
 
-        #Copy reverse
+        #   Copy reverse
         i = (node2.tourPos + self.length)%self.length
         end = (node1.tourPos)%self.length
         while i != end:
             newRoute.append(self.tourNodes[i])
             i = (i-1)%self.length
 
+        #   Attribute the right positions
         for i in range(0,len(self.tourNodes)):
             newRoute[i].tourPos = i
 
         self.tourNodes = newRoute
 
-
+    #   Return a list with the Ids of the node in the tour order
     def GetTourIds(self):
         nodeIds = []
         for node in self.tourNodes:
             nodeIds.append(node.id)
         return nodeIds
 
+#   Class used to set different strategies to different instances os the problem.
+#   One strategy sets different parameters (Maximun Runtime, Local Search Procedure, etc)
 class Strategy(Enum):
     Default = "Default"
     Alpha = "Alpha"
@@ -205,12 +270,13 @@ class Strategy(Enum):
     Delta = "Delta"
     Epsilon = "Epsilon"
 
+#   Enum to change the behaviour of the local search method to work with either first improment approach or last improvement approach
 class ImprovementType(Enum):
     Best = "Best Improvement"
     First = "First Improvement"
 
+#   Class to help to monitor the runtimes of the algorithm
 class Clock():
-    
     def __init__ (self):
         self.start = None
 
@@ -278,14 +344,17 @@ def solve_it(input_data):
 #       Utility Methods        #
 ################################
 
+# Return the time from hour, second and secods to seconds
 def getTimeInSeconds(hours,minutes,seconds):
     return (((hours*3600)+(minutes*60)+seconds))
 
+# Return the time interval between start and end (both in seconds) in hour, minute and second
 def getIntervalDuration(start,end):
      hours, rem = divmod(end-start, 3600)
      minutes, seconds = divmod(rem, 60)
      return int(hours),int(minutes),seconds
 
+#   Set up parameters for different strategies
 def GetInstanceParameters(strategy,instanceSize):
     if strategy == Strategy.Alpha:
         return AlphaSetup(instanceSize)
@@ -300,6 +369,9 @@ def GetInstanceParameters(strategy,instanceSize):
     else: 
         return DefaultSetup(instanceSize)
 
+###############################################
+#             Strategy Setups                 #
+##############################################
 def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Alpha
@@ -371,10 +443,10 @@ def DefaultSetup(instanceSize):
 #     Search Methods          #
 ###############################
 
-#Get the Initial Solution
-#For symmetry breaking, only the egdes a -> b, where a < b, are created.
-#However, the edge is referenced by both nodes
-#This method just create a contiguous path from the first to the last node
+#   Get the Initial Solution
+#   For symmetry breaking, only the egdes a -> b, where a < b, are created.
+#   However, the edge is referenced by both nodes
+#   This method just create a contiguous path from the first to the last node
 def GetInitialSolution(graph):
     global clock
     clock.setStart(time.time())
@@ -394,10 +466,12 @@ def GetInitialSolution(graph):
     print("=========================================================")
     return graph.GetTourIds(),graph.tourLength
 
-#Get the Initial Solution using the Nearest Neighbourhood Heuristic
-#For symmetry breaking, only the egdes a -> b, where a < b, are created.
-#However, the edge is referenced by both nodes
-#For better performance (both time and memory), the manhatan distance heuristic is used. Thus, it is an approximation of the Nearest NeighbourHood
+#   Get the Initial Solution using the Nearest Neighbour Heuristic
+#   For symmetry breaking, only the egdes a -> b, where a < b, are created.
+#   However, the edge is referenced by both nodes
+#   For better performance (both time and memory), the manhatan distance heuristic is used in order to evaluate the distances. 
+#   Thus, it is an approximation of the Nearest Neighbour Search
+
 def GetNearestNeighbourhoodSolution(graph):
     global clock
     clock.setStart(time.time())
@@ -440,7 +514,7 @@ def GetNearestNeighbourhoodSolution(graph):
         graph.addNodeinTour(currentNode)
         graph.addEgdeinPool(bestEdge)       
         activeNodes-=1
-        currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node
+        currentNode = bestEdge.node1 if bestEdge.node1.id != currentNode.id else bestEdge.node2
 
     print("Edges in Pool: {}".format(len(graph.edgesPool)))
     print("Tour Length: {}".format(graph.tourLength))
@@ -454,7 +528,7 @@ def GetNearestNeighbourhoodSolution(graph):
     print("=========================================================")
     return graph.GetTourIds(),graph.tourLength
 
-#Guided Local Search Main Method
+#  Guided Local Search Main Method
 def GuidedLocalSearch(graph,params):
     global clock
     hour,minute,second = getIntervalDuration(0,params["executionTimeLimit"])
@@ -471,18 +545,14 @@ def GuidedLocalSearch(graph,params):
     lastImprovemntClock = Clock()
     lastImprovemntClock.setStart(time.time())
     egdesUsedforSolution = len(graph.edgesPool)
-    messageClock = Clock()
-    messageClock.setStart(time.time())
 
+    # Run until the set up execution time is over
     while not clock.isTimeOver(time.time(),params["executionTimeLimit"]):
         
+        # Get the solution of the Fast Local Search Procedure
         solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"],params["localSearchProcedure"])
         
-        # if(messageClock.isTimeOver(time.time(),30)):
-        #     print("CURRENT Objective Value: {}".format(currentObjFunction))
-        #     print("CANDIDATE Objective Value: {}".format(objFunction))
-        #     messageClock.setStart(time.time())
-
+        # Check if a better solution has been found
         if currentObjFunction > objFunction:
             currentObjFunction = objFunction
             currentSolutionSequence = solutionSequence
@@ -496,6 +566,8 @@ def GuidedLocalSearch(graph,params):
             print("Edges in Pool: {}".format(len(graph.edgesPool)))
 
         
+        # If the maximum improvement time is over, restart the search after randomly swap nodes in the solution (if enabled)
+        # or terminate the execution
         if(lastImprovemntClock.isTimeOver(time.time(),params["noImprovementTimeLimit"])):
         #Random Pertubation Restart
             if  params["randomRestarts"]:
@@ -514,15 +586,20 @@ def GuidedLocalSearch(graph,params):
                     print("No improvement after {:0>2}:{:0>2}:{:05.2f}s. Stopping execution.".format(hour,minute,second))
                     break
 
+        #   Update alpha parameter 
         alpha = params["beta"] * (currentObjFunction/len(graph.tourEdges))
 
         maxUtilValue = 0
+        
+        # Get the util value for edges (features) in the current solution
         for key in graph.tourEdges.keys():
             aux = GetUtilValue(graph.tourEdges[key])
             if aux > maxUtilValue:
                 maxUtilValue = aux
-        
+
+        #   Penalize the features in the solution with the highest util value
         PenalizeFeatures(graph,maxUtilValue)
+
     print("Instance: {} - End Guided Local Search".format(graph.length))
     print("=========================================================")
     hour,min,sec = getIntervalDuration(clock.getStart(),lastImprovemntClock.getStart())
@@ -531,7 +608,7 @@ def GuidedLocalSearch(graph,params):
     return currentSolutionSequence, currentObjFunction
 
 
-#Swap edges randomly
+#Swap nodes randomly
 def RandomSwaps(graph,pertubationSize = 0.15):
     print("=========================================================")
     print("Instance: {} - Start Random Swaps".format(graph.length))
@@ -576,7 +653,37 @@ def RandomSwaps(graph,pertubationSize = 0.15):
     print("=========================================================")
 
 
-#Swap- heuristic using Best Improvement or First Improvement Strategy
+#   Swap- heuristic using Best Improvement or First Improvement Strategy
+#   How it Works: In the 2-Opt Iteration Loop, one node is select to be the "Base" node, and then we loop over all edges of the tour 
+#   from this base node. Eg. Supose the tour is 1-6-4-2-3-5. If the Base Node is 4, the we fix the forward edge (4,2) to be removed 
+#   and iterate over the edges (3,5),(5,1), and (1,6), removing them (together with the base edge (4,2)) and evaluating the cost of adding new edges.
+#   For iterating over the edges, we actually iterate over the nodes in the tour (in the sequence they appear in the tour), starting 2 positions ahead from the base node position.
+#   In the code, this iterated node is called swapNode.
+#   In this example, we will iterate over nodes 3,5,1. We stop when the swapNode node is adjacent to the current node,ie node 6.
+#   (In this case, we only remove the forward edges, then, iterating over the previous adjacent node of the base node would eliminate the previous base node edge).
+
+#   Supose that the best move is to remove the edges (4,2) and (3,5) and to add the edges (3,4) and (2,5) (ie, our swap node is 3).
+#   Note that the new edges are built by linking the Base node (4) to the swap node (3) and the foward adjacent node of the base node (2) and the foward adjacent node
+#   of the swap node (5).
+#   
+#   So, the 2-opt works as follows:
+#       1) Remove edges (4,2) and (3,5) :
+#           Previous: 1-6-4-2-3-5
+#           After: 1-6-4   2-3   5
+#
+#       2) Link the Base node (4) to the swap Node (3):
+#           Previous: 1-6-4   2-3   5
+#           After: 1-6-4-3-2   5
+#
+#       3) Link the forward adjacent node of Base Node (2) to the forward adjacent node of the swap node (5)
+#           Previous: 1-6-4-3-2   5
+#           After: 1-6-4-3-2-5
+#
+#       Thus, the new tour is  1-6-4-3-2-5.
+#   Note that the difference between the previous tour (1-6-4-2-3-5) and the new tour (1-6-4-3-2-5) is that the nodes between the base node (4) and the forward adjacent node of the swap node (5)
+#   are in the reverse order.
+#   The method returns what edges must be added/removed and which nodes must be place in the active list in the Fast Local Search Procedure.
+
 def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
     global clock
     activatedNodes = {}
@@ -588,6 +695,7 @@ def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
     currentDeltaCost = 0
     i = (currentNode+2)%graph.length
     end = ((currentNode-1)%graph.length)
+
     while i!= end and not clock.isTimeOver(time.time(),clock.getStart()):
         
         removedEdges, addedEdges = GetTwoOptMove(graph,graph.tourNodes[currentNode],graph.tourNodes[i])
@@ -616,9 +724,13 @@ def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
         oldEdge.ActivateNodes()
     return activatedNodes,currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
 
-#This method returns what edges must be added/removed in order to perform the 2-opt movement.
-#It does not change the tour. The tour is change only if an improvement is made by the swap
-#Check whether the edge exists in graph.edgesPool before creation.
+#   This method returns what edges must be added/removed in order to perform the 2-opt movement.
+#   It does not change the tour. The tour is change only if an improvement is made by the edge exchange
+#   Check whether the edge exists in graph.edgesPool before creation to get efficiency in the memory usage
+#   It also uses the Manhatan distance (aka Taxicab distance) to get time efficient. It works due the triangule inequality. If the condition tests true, the method 
+#   do not generate a candidate move because the move is cleary worse than the current solution. Thus, we get time efficiency by pruning the search space.
+#   The move is obtained by the procedure describe in the 2-opt method.
+
 def GetTwoOptMove(graph,currentNode,swapNode):
     removedEdges = []
     addedEdges = []
@@ -660,7 +772,8 @@ def GetTwoOptMove(graph,currentNode,swapNode):
 
     return removedEdges,addedEdges
 
-#Swap- heuristic using Best Improvement or First Improvement Strategy
+#   Swap two nodes in the solution
+#   The method returns what edges must be added/removed and which nodes must be place in the active list in the Fast Local Search Procedure.
 def Swap(graph,node,alpha=1,improvementType = ImprovementType.First):
     activatedNodes = {}
     currentNode = graph.tourNodes.index(node)
@@ -746,12 +859,14 @@ def GetSwapMove(graph,currentNode,swapNode):
 
     return removedEdges,addedEdges
 
-#Fast Local Search main Method
+#   Fast Local Search main Method
 def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementType.First,localSearchProcudure = None):
     global clock
     currentSolutionSequence = graph.GetTourIds()
     activeNeighbourhoods = GetActivateNeighbourhoods(graph)
     currentObjValue = graph.tourLength
+
+    #   Runs while there are active nodes (sub-neighbourhoods) to be searched and maximum execution time is not over
     while len(activeNeighbourhoods.keys()) > 0 and not clock.isTimeOver(time.time(),excutionTimeLimit):
         key = (next(iter(activeNeighbourhoods))) 
         node = activeNeighbourhoods[key]
@@ -759,6 +874,7 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
         node.active = False
         
         activatedNodes, deltaCost,removedEdges,addedEdges,swapNodes = localSearchProcudure(graph,node,alpha,improvementType)
+        
         if(deltaCost < 0):
             if (localSearchProcudure.__name__ == "Swap"):
                 graph.SwapNodesInTour(swapNodes[0],swapNodes[1])
@@ -779,7 +895,7 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
     return currentSolutionSequence, currentObjValue
 
 
-#Get all nodes that are active to the local search algorithm
+#   Get all nodes that are active for the local search algorithm
 def GetActivateNeighbourhoods(graph):
     d = OrderedDict()
     for node in graph.nodes:
@@ -787,7 +903,7 @@ def GetActivateNeighbourhoods(graph):
             d[node.id] = node
     return d
 
-#Penalizes the edges in the solution with the maximum utility value and activated the nodes (sub-neighbourhoods) at their ends
+#   Penalizes the edges in the solution with the maximum utility value and activated the nodes (sub-neighbourhoods) at their ends
 def PenalizeFeatures(graph, maxUtil):
     for key in graph.tourEdges.keys():
         if graph.tourEdges[key].util == maxUtil:
@@ -795,13 +911,15 @@ def PenalizeFeatures(graph, maxUtil):
             graph.tourEdges[key].ActivateNodes()
 
 
-#Calculate the utility value for each edge presented in the local optima solution
+#   Calculate the utility value for each edge presented in the local optima solution
 def GetUtilValue(edge):
     edge.util = edge.GetLength()/(1+edge.penalty)
     return edge.util
 
 
-#Evaluation of the move using Augmented Objective Function
+#   Evaluation of the move using Augmented Objective Function
+#   This return the variation (delta) of the move. If it is negative, means that the move improve the solution
+
 def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1,EvaluateManhatan = False):
 
     removed = 0
@@ -817,6 +935,7 @@ def EvaluateMovePenalized(removedEdges,addedEdges,alpha=1,EvaluateManhatan = Fal
  
     return delta
 
+#Main method
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
