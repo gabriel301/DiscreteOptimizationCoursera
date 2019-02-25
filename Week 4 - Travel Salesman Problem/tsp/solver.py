@@ -1,13 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#################################################################################
-# Travel Salesman Problem - Gabriel Augusto - 18/02/2019                        #
-# gabriel301@gmail.com                                                          #
-# Approach: Guided Local Search + Fast Local Search + 2-opt                     #
-# Reference: http://www.bracil.net/CSP/papers/VouTsa-Gls-MetaHeuristic2003.pdf  #
-#                                                                               #
-#################################################################################
+###############################################################################################################
+# Travel Salesman Problem - Gabriel Augusto - 18/02/2019                                                      #
+# gabriel301@gmail.com                                                                                        #
+# Approach: Guided Local Search + Fast Local Search + 2-opt + Manhatan Distance Relaxation                    #
+# Reference: http://www.bracil.net/CSP/papers/VouTsa-Gls-MetaHeuristic2003.pdf                                #
+#                                                                                                             #
+###############################################################################################################
 
 import math
 from collections import namedtuple
