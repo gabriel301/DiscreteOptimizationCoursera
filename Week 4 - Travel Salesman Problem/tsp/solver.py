@@ -375,12 +375,11 @@ def GetInstanceParameters(strategy,instanceSize):
 def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Alpha
-    params["executionTimeLimit"] = getTimeInSeconds(1,30,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(1,30,0)
+    params["executionTimeLimit"] = getTimeInSeconds(2,0,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(2,0,0)
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["beta"] = 0.125
     params["randomRestartsLimit"] = 3
     params["restartLimitIncrement"] = 1.1
     params["randomRestarts"] = False
@@ -396,7 +395,6 @@ def BetaSetup(instanceSize):
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
     params["strategy"] = Strategy.Beta
-    params["beta"] = 0.125
     return params
 
 def GammaSetup(instanceSize):
@@ -407,37 +405,34 @@ def GammaSetup(instanceSize):
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["beta"] = 0.125
     return params
 
 def DeltaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Delta
-    params["executionTimeLimit"] = getTimeInSeconds(3,0,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(3,0,0)
+    params["executionTimeLimit"] = getTimeInSeconds(4,0,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(4,0,0)
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["beta"] = 0.125
     return params
 
 def EpsilonSetup(instanceSize):
     params = DefaultSetup(instanceSize)
-    params["executionTimeLimit"] = getTimeInSeconds(3,0,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(3,0,0)
+    params["executionTimeLimit"] = getTimeInSeconds(4,58,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(4,58,0)
     params["localSearchProcedure"] = TwoOpt
     params["strategy"] = Strategy.Epsilon
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["beta"] = 0.125
     return params
 
 def DefaultSetup(instanceSize):
     params = {}
     params["improvementType"] = ImprovementType.First
     params["executionTimeLimit"] = getTimeInSeconds(4,30,0) #4 hours and 30 minutes of time limit
-    params["beta"] = 0.125 #1/8 <= beta <= 1/2
+    params["beta"] = 0.5 #1/8 <= beta <= 1/2
     params["noImprovementTimeLimit"] = getTimeInSeconds(0,20,0)
     params["swapsLimit"] = 5 if 0.01*instanceSize < 5 else int(0.01*instanceSize)
     params["randomRestarts"] = False
