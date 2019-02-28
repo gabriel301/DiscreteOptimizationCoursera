@@ -17,6 +17,7 @@ import random
 import time
 from enum import Enum
 import datetime
+from collections import deque
 
 ###################################
 # Data Structures Definitions     #
@@ -375,36 +376,39 @@ def GetInstanceParameters(strategy,instanceSize):
 def AlphaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Alpha
-    params["executionTimeLimit"] = getTimeInSeconds(2,0,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(2,0,0)
+    params["executionTimeLimit"] = getTimeInSeconds(1,40,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(1,40,0)
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["randomRestartsLimit"] = 3
+    params["randomRestartsLimit"] = 6
     params["restartLimitIncrement"] = 1.1
-    params["randomRestarts"] = False
-    params["restartLimitTime"] = getTimeInSeconds(0,5,0)
+    params["randomRestarts"] = True
+    params["restartLimitTime"] = getTimeInSeconds(0,6,0)
+    params["beta"] = 0.75
     
     return params
 
 def BetaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["executionTimeLimit"] = getTimeInSeconds(0,2,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(0,0,15)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,0,30)
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
     params["strategy"] = Strategy.Beta
+    params["beta"] = 0.125
     return params
 
 def GammaSetup(instanceSize):
     params = DefaultSetup(instanceSize)
     params["strategy"] = Strategy.Gamma
-    params["executionTimeLimit"] = getTimeInSeconds(0,3,0)
-    params["noImprovementTimeLimit"] = getTimeInSeconds(0,3,0)
+    params["executionTimeLimit"] = getTimeInSeconds(0,5,0)
+    params["noImprovementTimeLimit"] = getTimeInSeconds(0,5,0)
     params["localSearchProcedure"] = TwoOpt
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
+    params["beta"] = 0.25
     return params
 
 def DeltaSetup(instanceSize):
@@ -415,7 +419,13 @@ def DeltaSetup(instanceSize):
     params["improvementType"] = ImprovementType.Best
     params["localSearchProcedure"] = TwoOpt
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
+    params["randomRestartsLimit"] = 7
+    params["restartLimitIncrement"] = 1.1
+    params["randomRestarts"] = True
+    params["restartLimitTime"] = getTimeInSeconds(0,10,0)
+    params["beta"] = 0.85
     return params
+    
 
 def EpsilonSetup(instanceSize):
     params = DefaultSetup(instanceSize)
@@ -426,6 +436,11 @@ def EpsilonSetup(instanceSize):
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
+    params["randomRestartsLimit"] = 8
+    params["restartLimitIncrement"] = 1.1
+    params["randomRestarts"] = True
+    params["restartLimitTime"] = getTimeInSeconds(0,12,0)
+    params["beta"] = 1
     return params
 
 def DefaultSetup(instanceSize):
@@ -568,9 +583,9 @@ def GuidedLocalSearch(graph,params):
         # Get the solution of the Fast Local Search Procedure
         solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"],params["localSearchProcedure"])
        
-        if(messageClock.isTimeOver(time.time(),30)):
-            print("CANDIDATE Value: {}".format(objFunction))
-            print("CURRENT Value: {}".format(currentObjFunction))
+        if(messageClock.isTimeOver(time.time(),300)):
+            hour,m,sec = getIntervalDuration(time.time(),clock.getStart())
+            print("Optimization Remaining Time: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
             messageClock.setStart(time.time())
 
         # Check if a better solution has been found
@@ -582,6 +597,8 @@ def GuidedLocalSearch(graph,params):
             end = time.time()
             hour,m,sec = getIntervalDuration(start,end)
             print("Time Elapsed since last improvement: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
+            hour,m,sec = getIntervalDuration(time.time(),clock.getStart())
+            print("Optimization Remaining Time: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
             lastImprovemntClock.setStart(time.time())
             lastRandomRestartClock.setStart(time.time())
             egdesUsedforSolution = len(graph.edgesPool)
@@ -596,11 +613,14 @@ def GuidedLocalSearch(graph,params):
             if(lastRandomRestartClock.isTimeOver(time.time(),params["restartLimitTime"]) and randomRestartsCount < params["randomRestartsLimit"] ):
                 randomRestartsCount +=1
                 print("Random Restart {}/{}".format(randomRestartsCount,params["randomRestartsLimit"] ))
-                RandomSwaps(graph,params["swapsLimit"])        
-                lastImprovemntClock.setStart(time.time())
+                #RandomSwaps(graph,params["swapsLimit"])        
+                #lastImprovemntClock.setStart(time.time())
                 params["restartLimitTime"] = int(params["restartLimitTime"] * params["restartLimitIncrement"])
                 params["swapsLimit"] = int(params["swapsLimit"] * params["restartLimitIncrement"]) 
-                #alpha = 0
+                params["beta"] = params["beta"]*0.75
+                print("New Beta Value: {}".format(params["beta"]))
+                hour,m,sec = getIntervalDuration(0,params["restartLimitTime"])
+                print("Next Restart in {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
                 messageClock.setStart(time.time())
                 lastRandomRestartClock.setStart(time.time())
                 continue 
@@ -734,11 +754,6 @@ def TwoOpt(graph,node,alpha=1,improvementType = ImprovementType.First):
                 
         i = (i+1)%graph.length
 
-    for newEdge in currentAddedEdges:
-        newEdge.ActivateNodes()
-
-    for oldEdge in currentRemovedEdges:
-        oldEdge.ActivateNodes()
 
     return currentDeltaCost,currentRemovedEdges,currentAddedEdges,swapNodes
 
@@ -878,8 +893,8 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
     global clock
     currentSolutionSequence = graph.GetTourIds()
     currentObjValue = graph.tourLength
-
-   
+    activeNodes = GetActiveNodes(graph)
+    #print("FLS Active Nodes: {}".format(len(activeNodes)))
     i=0
      #   Here there is a slight change of implementation regarginf to the paper.
      #   In the paper, the fast local search runs while there are active nodes (sub-neighbourhoods) 
@@ -889,14 +904,15 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
      #   optima in this case (and consume too much time to get it), I changed the implementation to simple itereate over the
      #   tour and return the best possible move in each iteration. 
      #   After that, it returns to the Guided Local Search Procedure
-    while i < graph.length and not clock.isTimeOver(time.time(),excutionTimeLimit):
-        node = graph.tourNodes[i]
-        i+=1
-        if(not node.active):
-            continue
-
+    #while i < graph.length and not clock.isTimeOver(time.time(),excutionTimeLimit):
+    while len(activeNodes) > 0 and not clock.isTimeOver(time.time(),excutionTimeLimit):
+        # node = graph.tourNodes[i]
+        # i+=1
+        # if(not node.active):
+        #     continue
+        node = activeNodes.pop()
+        #print("FLS Node Id: {}".format(node.id))
         node.active = False
-        
         deltaCost,removedEdges,addedEdges,swapNodes = localSearchProcudure(graph,node,alpha,improvementType)
         
         if(deltaCost < 0):
@@ -906,10 +922,20 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
                 graph.SwapEdgesInTour(swapNodes[0],swapNodes[1])
 
             for oldEdge in removedEdges:
+                if(not oldEdge.node1.active):
+                    activeNodes.append(oldEdge.node1)
+                if(not oldEdge.node2.active):
+                    activeNodes.append(oldEdge.node2)
+                oldEdge.ActivateNodes()
                 graph.deleteEdgeinTour(oldEdge)
 
             for newEdge in addedEdges:
                 graph.addEgdeinTour(newEdge)
+                if(not newEdge.node1.active):
+                    activeNodes.append(newEdge.node1)
+                if(not newEdge.node2.active):
+                    activeNodes.append(newEdge.node2)
+                newEdge.ActivateNodes()
                     
             currentSolutionSequence = graph.GetTourIds()
             currentObjValue = graph.tourLength
@@ -917,6 +943,15 @@ def FastLocalSearch(graph,alpha,excutionTimeLimit,improvementType = ImprovementT
             #     activeNeighbourhoods[key] = activatedNodes[key]
             #print("Fast Local Search: Current Value: {}".format(currentObjValue))
     return currentSolutionSequence, currentObjValue
+
+def GetActiveNodes(graph):
+    activeNodes = deque()
+
+    for node in graph.tourNodes:
+        if(node.active):
+            activeNodes.append(node)
+
+    return activeNodes
 
 #   Penalizes the edges in the solution with the maximum utility value and activated the nodes (sub-neighbourhoods) at their ends
 def PenalizeFeatures(graph, maxUtil):
