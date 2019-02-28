@@ -583,9 +583,9 @@ def GuidedLocalSearch(graph,params):
         # Get the solution of the Fast Local Search Procedure
         solutionSequence, objFunction = FastLocalSearch(graph,alpha,params["executionTimeLimit"],params["improvementType"],params["localSearchProcedure"])
        
-        if(messageClock.isTimeOver(time.time(),300)):
-            hour,m,sec = getIntervalDuration(time.time(),clock.getStart())
-            print("Optimization Remaining Time: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
+        if(messageClock.isTimeOver(time.time(),60)):           
+            hour,m,sec = getIntervalDuration(0,params["executionTimeLimit"] - (time.time()-clock.getStart()))
+            print("OPTMIZATION REMAINING TIME: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
             messageClock.setStart(time.time())
 
         # Check if a better solution has been found
@@ -597,13 +597,13 @@ def GuidedLocalSearch(graph,params):
             end = time.time()
             hour,m,sec = getIntervalDuration(start,end)
             print("Time Elapsed since last improvement: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
-            hour,m,sec = getIntervalDuration(time.time(),clock.getStart())
-            print("Optimization Remaining Time: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
+            # hour,m,sec = getIntervalDuration(0,params["executionTimeLimit"] - (time.time()-clock.getStart()))
+            # print("Optimization Remaining Time: {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
             lastImprovemntClock.setStart(time.time())
             lastRandomRestartClock.setStart(time.time())
             egdesUsedforSolution = len(graph.edgesPool)
             print("Edges Explored to find this solution: {}".format(len(graph.edgesPool)))
-            messageClock.setStart(time.time())
+            #messageClock.setStart(time.time())
 
         
         
@@ -621,7 +621,7 @@ def GuidedLocalSearch(graph,params):
                 print("New Beta Value: {}".format(params["beta"]))
                 hour,m,sec = getIntervalDuration(0,params["restartLimitTime"])
                 print("Next Restart in {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
-                messageClock.setStart(time.time())
+                #messageClock.setStart(time.time())
                 lastRandomRestartClock.setStart(time.time())
                 continue 
 
