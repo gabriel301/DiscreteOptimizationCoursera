@@ -379,12 +379,12 @@ def AlphaSetup(instanceSize):
     params["executionTimeLimit"] = getTimeInSeconds(1,40,0)
     params["noImprovementTimeLimit"] = getTimeInSeconds(1,40,0)
     params["localSearchProcedure"] = TwoOpt
-    params["improvementType"] = ImprovementType.Best
+    params["improvementType"] = ImprovementType.First
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["randomRestartsLimit"] = 6
+    params["randomRestartsLimit"] = 3
     params["restartLimitIncrement"] = 1.1
     params["randomRestarts"] = True
-    params["restartLimitTime"] = getTimeInSeconds(0,6,0)
+    params["restartLimitTime"] = getTimeInSeconds(0,10,0)
     params["beta"] = 0.75
     
     return params
@@ -416,14 +416,14 @@ def DeltaSetup(instanceSize):
     params["strategy"] = Strategy.Delta
     params["executionTimeLimit"] = getTimeInSeconds(4,0,0)
     params["noImprovementTimeLimit"] = getTimeInSeconds(4,0,0)
-    params["improvementType"] = ImprovementType.Best
+    params["improvementType"] = ImprovementType.First
     params["localSearchProcedure"] = TwoOpt
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["randomRestartsLimit"] = 7
+    params["randomRestartsLimit"] = 4
     params["restartLimitIncrement"] = 1.1
     params["randomRestarts"] = True
-    params["restartLimitTime"] = getTimeInSeconds(0,10,0)
-    params["beta"] = 0.85
+    params["restartLimitTime"] = getTimeInSeconds(0,30,0)
+    params["beta"] = 1
     return params
     
 
@@ -436,11 +436,11 @@ def EpsilonSetup(instanceSize):
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
     params["improvementType"] = ImprovementType.Best
     params["initialSolutionFunction"] = GetNearestNeighbourSolution
-    params["randomRestartsLimit"] = 8
+    params["randomRestartsLimit"] = 5
     params["restartLimitIncrement"] = 1.1
     params["randomRestarts"] = True
-    params["restartLimitTime"] = getTimeInSeconds(0,12,0)
-    params["beta"] = 1
+    params["restartLimitTime"] = getTimeInSeconds(0,25,0)
+    params["beta"] = 1.2
     return params
 
 def DefaultSetup(instanceSize):
@@ -617,7 +617,9 @@ def GuidedLocalSearch(graph,params):
                 #lastImprovemntClock.setStart(time.time())
                 params["restartLimitTime"] = int(params["restartLimitTime"] * params["restartLimitIncrement"])
                 params["swapsLimit"] = int(params["swapsLimit"] * params["restartLimitIncrement"]) 
-                params["beta"] = params["beta"]*0.75
+                params["beta"] = params["beta"]- 0.25
+                if(params["beta"] < 0):
+                    params["beta"] = 0
                 print("New Beta Value: {}".format(params["beta"]))
                 hour,m,sec = getIntervalDuration(0,params["restartLimitTime"])
                 print("Next Restart in {:0>2}:{:0>2}:{:05.2f}s".format(hour,m,sec))
