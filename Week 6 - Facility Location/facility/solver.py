@@ -12,7 +12,7 @@ Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 def length(point1, point2):
     return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
-def getInitialSolution(facilities,customers):
+def getGreedyInitialSolution(facilities,customers):
      # build a trivial solution
     # pack the facilities one by one until all the customers are served
     solution = [-1]*len(customers)
@@ -61,13 +61,22 @@ def solve_it(input_data):
 
     instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
     instance.createModel()
-    obj,solution = instance.optimize()
+    obj,assignments = instance.optimize()
    # obj,solution = getInitialSolution(facilities,customers)
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(1) + '\n'
-    output_data += ' '.join(map(str,[x[0] for x in solution]))
+    output_data += ' '.join(map(str,formatSolution(assignments)))
 
     return output_data
+
+def formatSolution(assignments):
+    solutionDict = {}
+
+    for (facility,customer) in assignments:
+        solutionDict[customer] = facility
+    size = len(solutionDict)
+    solution = [solutionDict[i] for i in range(0,size)]
+    return solution
 
 
 import sys

@@ -37,6 +37,7 @@ class MIP:
         for facility in self.facilities:
             for customer in self.customers:
                 self.model.addCons(self.varCustomerAssignment[facility.index,customer.index] <=  facility.capacity*self.varFacilityAssignment[facility.index],"Strong(%s,%s)"%(facility.index,customer.index))
+                self.model.addCons(self.varCustomerAssignment[facility.index,customer.index] >= 0 )
         
         print("Creating Objective Function...")
         #Objective Function
@@ -55,5 +56,6 @@ class MIP:
     
     def length(self,point1, point2):
         return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+    
 
         
