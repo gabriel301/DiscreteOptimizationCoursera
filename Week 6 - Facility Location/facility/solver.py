@@ -2,15 +2,14 @@
 # -*- coding: utf-8 -*-
 
 from collections import namedtuple
-import math
+from Util import Util
 from MIP import MIP
+from ParametersConfiguration import ParametersConfiguration
+from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
-
-def length(point1, point2):
-    return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
 def getGreedyInitialSolution(facilities,customers):
      # build a trivial solution
@@ -36,7 +35,7 @@ def getGreedyInitialSolution(facilities,customers):
     # calculate the cost of the solution
     obj = sum([f.setup_cost*used[f.index] for f in facilities])
     for customer in customers:
-        obj += length(customer.location, facilities[solution[customer.index]].location)
+        obj += Util.length(customer.location, facilities[solution[customer.index]].location)
     return obj,solution
 
 def solve_it(input_data):
@@ -59,24 +58,29 @@ def solve_it(input_data):
         parts = lines[i].split()
         customers.append(Customer(i-1-facility_count, int(parts[0]), Point(float(parts[1]), float(parts[2]))))
 
-    instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
-    instance.createModel()
-    obj,assignments = instance.optimize()
-   # obj,solution = getInitialSolution(facilities,customers)
-    # prepare the solution in the specified output format
-    output_data = '%.2f' % obj + ' ' + str(1) + '\n'
-    output_data += ' '.join(map(str,formatSolution(assignments)))
+    paramsConfig = ParametersConfiguration(facility_count*customer_count)
+    params = paramsConfig.getParameters()
+    print("============================================================================================================================================================")
+    print("Instace Size: %s || Strategy: %s || Paradigm: %s || Improvement Type: %s" % (paramsConfig.instanceSize,params["strategy"],params["paradigm"],params["improvementType"]))
+    print("============================================================================================================================================================")
+    if(params["paradigm"] == SolvingParadigm.MIP):
+        instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
+        instance.createModel()
+        obj,assignments = instance.optimize()
+        output_data = '%.2f' % obj + ' ' + str(1) + '\n'
+        output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))
+    
+    elif (params["paradigm"] == SolvingParadigm.Hybrid):
+        obj,assignments = getGreedyInitialSolution(facilities,customers)
+        output_data = '%.2f' % obj + ' ' + str(0) + '\n'
+        output_data += ' '.join(map(str,assignments))
+
+    elif (params["paradigm"] == SolvingParadigm.Heuristic):
+        obj,assignments = getGreedyInitialSolution(facilities,customers)
+        output_data = '%.2f' % obj + ' ' + str(0) + '\n'
+        output_data += ' '.join(map(str,assignments))
 
     return output_data
-
-def formatSolution(assignments):
-    solutionDict = {}
-
-    for (facility,customer) in assignments:
-        solutionDict[customer] = facility
-    size = len(solutionDict)
-    solution = [solutionDict[i] for i in range(0,size)]
-    return solution
 
 
 import sys

@@ -1,5 +1,6 @@
 from pyscipopt import Model, quicksum
 import math
+from Util import Util
 
 class MIP:
     facilities = []
@@ -41,7 +42,7 @@ class MIP:
         
         print("Creating Objective Function...")
         #Objective Function
-        self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(self.length(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
+        self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(Util.length(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
         self.model.data = self.varFacilityAssignment, self.varCustomerAssignment
 
     def optimize(self):
@@ -54,8 +55,6 @@ class MIP:
         obj = self.model.getObjVal()
         return  obj,assignments
     
-    def length(self,point1, point2):
-        return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
-    
+   
 
         
