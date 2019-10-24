@@ -6,6 +6,8 @@ from Util import Util
 from MIP import MIP
 from ParametersConfiguration import ParametersConfiguration
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
+import time
+import datetime
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
@@ -39,7 +41,8 @@ def getGreedyInitialSolution(facilities,customers):
     return obj,solution
 
 def solve_it(input_data):
-    # Modify this code to run your optimization algorithm
+    start = time.time()
+    print("Start DateTime: {}".format(datetime.datetime.now()))
 
     # parse the input
     lines = input_data.split('\n')
@@ -80,6 +83,10 @@ def solve_it(input_data):
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 
+    end = time.time()
+    hours, minutes, seconds = Util.getIntervalDuration(start,end)
+    print("End DateTime: {}".format(datetime.datetime.now()))
+    print("EXECUTION TIME: {:0>2}:{:0>2}:{:05.2f}s".format(int(hours),int(minutes),seconds))
     return output_data
 
 
