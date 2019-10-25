@@ -8,6 +8,7 @@ from ParametersConfiguration import ParametersConfiguration
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 from Preprocessing import Preprocessing
 from Forest import Forest
+from LNS import LNS
 import time
 import datetime
 
@@ -44,6 +45,7 @@ def getGreedyInitialSolution(facilities,customers):
 
 def solve_it(input_data):
     start = time.time()
+
     print("Start DateTime: {}".format(datetime.datetime.now()))
 
     # parse the input
@@ -52,19 +54,33 @@ def solve_it(input_data):
     parts = lines[0].split()
     facility_count = int(parts[0])
     customer_count = int(parts[1])
-    
+    totalCapacity = 0
+    totalDemand = 0
     facilities = []
     for i in range(1, facility_count+1):
         parts = lines[i].split()
         facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[]))
+        totalCapacity = totalCapacity + float(parts[0])
 
     customers = []
     for i in range(facility_count+1, facility_count+1+customer_count):
         parts = lines[i].split()
         customers.append(Customer(i-1-facility_count, int(parts[0]), Point(float(parts[1]), float(parts[2]))))
+        totalDemand = totalDemand + int(parts[0])
 
+    print("TOTAL CAPACITY: %s || TOTAL DEMAND: %s"%(totalCapacity,totalDemand))
     paramsConfig = ParametersConfiguration(facility_count,facility_count*customer_count)
     params = paramsConfig.getParameters()
+    
+    #Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
+    #print("Facility: %s"%facilities[0].index)
+    #for quantile in facilities[0].distance_quantiles:
+    #    inside = []
+    #    for facility in facilities:
+    #        if Util.isInsideCircle(facilities[0].location,quantile,facility.location):
+    #            inside.append(facility.index)
+    #    print("Quantile: %s - Facilities nearby: %s"%(quantile,inside))
+
     print("============================================================================================================================================================")
     print("Instace Size: %s || Strategy: %s || Paradigm: %s || Improvement Type: %s" % (paramsConfig.instanceSize,params["strategy"],params["paradigm"],params["improvementType"]))
     print("============================================================================================================================================================")
@@ -78,6 +94,8 @@ def solve_it(input_data):
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
         obj,assignments = getGreedyInitialSolution(facilities,customers)
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
+        search = LNS(assignments,facilities,customers,params["improvementType"])
+        obj,assignments = search.optimize()
         #forest = Forest()
         #forest.buildForestFromArray(Util.formatSolutionFromMIP(assignments),facilities,customers)
         #for facility in facilities:

@@ -3,13 +3,20 @@ import math
 from Preprocessing import Preprocessing
 
 class MIP:
-    #facilities = None
-    #customers = None
-    #model = None
-    #name = None
-    #varFacilityAssignment,varCustomerAssignment= None,None
-    
+    DEBUG_MESSAGES = False
+
     def __init__(self, f, c, instanceName): 
+        self.initialize(f,c,instanceName)
+
+    def clear(self):
+        self.facilities = [] 
+        self.customers = [] 
+        self.instanceName = None
+        self.varFacilityAssignment = {}
+        self.varCustomerAssignment = {}
+
+    def initialize(self, f, c, instanceName):
+        self.clear()
         self.facilities = f 
         self.customers = c 
         self.instanceName = instanceName
@@ -49,6 +56,10 @@ class MIP:
 
     def optimize(self):
         print("Instace: %s" % self.instanceName)
+
+        if not self.DEBUG_MESSAGES:
+            self.model.hideOutput()
+        print("MIP - Optimizing...")
         self.model.optimize()
         print("Instace: %s solved." % self.instanceName)
         EPS = 1.e-6

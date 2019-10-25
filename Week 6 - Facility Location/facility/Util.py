@@ -15,6 +15,17 @@ class Util:
         solution = [solutionDict[i] for i in range(0,size)]
         return solution
   
+
+    @staticmethod
+    #Get a Dictionary with the MIP Solution
+    def getDictSolutionFromMIP(assignments):
+        solutionDict = {}
+
+        for (facility,customer) in assignments:
+            solutionDict[customer] = facility
+
+        return solutionDict
+        
     # Return the time from hour, second and secods to seconds
     @staticmethod    
     def getTimeInSeconds(hours,minutes,seconds):

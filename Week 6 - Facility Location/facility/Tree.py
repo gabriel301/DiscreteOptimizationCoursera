@@ -1,9 +1,6 @@
 from Preprocessing import Preprocessing
 
 class Tree:
-    #Root = None
-    #Nodes = None
-    #Cost = 0
 
     def __init__(self,treeRoot):
         self.Root = None
@@ -28,7 +25,7 @@ class Tree:
 
     def clearNodes(self):
         self.Nodes.clear()
-        self.cost = self.Cost = self.Cost + self.Root.setup_cost
+        self.Cost =  self.Root.setup_cost
 
     def getRoot(self):
         return self.Root

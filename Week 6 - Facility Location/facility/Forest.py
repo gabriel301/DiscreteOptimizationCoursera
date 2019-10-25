@@ -1,13 +1,12 @@
 from Tree import Tree
 
 class Forest:
-    #Trees = None
-    #TotalCost = 0
-    #TreesCount = 0
-    #TotalNodes = 0
 
     def __init__(self):
         self.Trees = {}
+        self.TotalCost = 0
+        self.TreesCount = 0
+        self.TotalNodes = 0
 
     def addTree(self,tree):
         if tree.getRoot().index in self.Trees.keys():
@@ -18,11 +17,11 @@ class Forest:
         self.TreesCount = self.TreesCount + 1
         self.TotalNodes = self.TotalNodes + len(tree.getNodes())
 
-    def removeTree(self,tree):
-        if tree.getRoot().index in self.Trees.keys():
-            self.TotalCost = self.TotalCost  - self.Trees[tree.getRoot().index].getCost()
-            self.TotalNodes = self.TotalNodes - len(self.Trees[tree.getRoot().index].getNodes())
-            self.Trees.pop(tree.getRoot().index,None)
+    def removeTree(self,facilityIndex):
+        if facilityIndex in self.Trees.keys():
+            self.TotalCost = self.TotalCost  - self.Trees[facilityIndex].getCost()
+            self.TotalNodes = self.TotalNodes - len(self.Trees[facilityIndex].getNodes())
+            self.Trees.pop(facilityIndex,None)
             self.TreesCount = self.TreesCount - 1
 
     def buildForestFromArray(self,assignments,facilities,customers):
@@ -34,6 +33,19 @@ class Forest:
                 self.Trees[assignments[index]] = Tree(facilities[assignments[index]])
 
             self.Trees.get(assignments[index]).addNode(customers[index])
+
+        for tree in self.Trees.values():  
+            self.TotalCost = self.TotalCost + tree.getCost()
+            self.TotalNodes = self.TotalNodes + len(tree.getNodes())
+            self.TreesCount = self.TreesCount + 1 
+
+    def buildForestFromDict(self,assignments,facilities,customers):
+        print("Building Forest from Assignment Dict...")
+        for customer in assignments.keys():
+            if(assignments.get(customer) not in self.Trees.keys()):
+                self.Trees[assignments.get(customer)] = Tree(facilities[assignments.get(customer)])
+
+            self.Trees.get(assignments.get(customer)).addNode(customers[customer])
 
         for tree in self.Trees.values():  
             self.TotalCost = self.TotalCost + tree.getCost()
@@ -65,3 +77,13 @@ class Forest:
         self.TotalCost = 0
         self.TotalNodes = 0
         self.TreesCount = 0
+
+    def getData(self):
+        facilities = []
+        customers = []
+        for tree in self.Trees.values():
+            facilities.append(tree.getRoot())
+            customers.extend(tree.getNodes().values())
+
+        return facilities,customers
+

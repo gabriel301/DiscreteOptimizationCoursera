@@ -68,3 +68,4 @@ class ParametersConfiguration:
         self.__DefaultSetup(instanceSize)
         self.params["strategy"] = Strategy.Beta
         self.params["paradigm"] = SolvingParadigm.Hybrid
+        self.params["improvementType"] = ImprovementType.First
