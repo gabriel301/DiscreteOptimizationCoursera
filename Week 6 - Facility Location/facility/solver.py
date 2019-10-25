@@ -6,11 +6,12 @@ from Util import Util
 from MIP import MIP
 from ParametersConfiguration import ParametersConfiguration
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
+from Preprocessing import Preprocessing
 import time
 import datetime
 
 Point = namedtuple("Point", ['x', 'y'])
-Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
+Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
 def getGreedyInitialSolution(facilities,customers):
@@ -37,7 +38,7 @@ def getGreedyInitialSolution(facilities,customers):
     # calculate the cost of the solution
     obj = sum([f.setup_cost*used[f.index] for f in facilities])
     for customer in customers:
-        obj += Util.length(customer.location, facilities[solution[customer.index]].location)
+        obj += Preprocessing.length(customer.location, facilities[solution[customer.index]].location)
     return obj,solution
 
 def solve_it(input_data):
@@ -54,14 +55,14 @@ def solve_it(input_data):
     facilities = []
     for i in range(1, facility_count+1):
         parts = lines[i].split()
-        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])) ))
+        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[]))
 
     customers = []
     for i in range(facility_count+1, facility_count+1+customer_count):
         parts = lines[i].split()
         customers.append(Customer(i-1-facility_count, int(parts[0]), Point(float(parts[1]), float(parts[2]))))
 
-    paramsConfig = ParametersConfiguration(facility_count*customer_count)
+    paramsConfig = ParametersConfiguration(facility_count,facility_count*customer_count)
     params = paramsConfig.getParameters()
     print("============================================================================================================================================================")
     print("Instace Size: %s || Strategy: %s || Paradigm: %s || Improvement Type: %s" % (paramsConfig.instanceSize,params["strategy"],params["paradigm"],params["improvementType"]))
@@ -75,6 +76,7 @@ def solve_it(input_data):
     
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
         obj,assignments = getGreedyInitialSolution(facilities,customers)
+        Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 

@@ -2,13 +2,34 @@ from Util import Util
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 
 class ParametersConfiguration:
+    MAX_FACILITIES_BY_SUBPROBLEM = 100.0   
+    QUANTILE_INTERVALS = 5
+    facilityCount = 0 
     params = None
     instanceSize = 0
-
-    def __init__(self,instanceSize):
+    
+    def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize
+        self.facilityCount = facilityCount
         self.__setStrategyParameters(instanceSize)
 
+    def __getQuantilesIntervals(self):
+        percentage = 0
+        if(self.facilityCount <= self.MAX_FACILITIES_BY_SUBPROBLEM):
+            percentage = 1
+        else:
+            percentage = self.MAX_FACILITIES_BY_SUBPROBLEM/float(self.facilityCount)
+
+        fistQuantile = percentage/float(self.QUANTILE_INTERVALS) 
+
+        intervals = [0]*self.QUANTILE_INTERVALS
+        quantile = fistQuantile
+
+        for interval in range(0,self.QUANTILE_INTERVALS):
+            intervals[interval] = quantile
+            quantile = quantile + fistQuantile
+
+        return intervals
 
     def getParameters(self):
         return self.params
@@ -33,6 +54,7 @@ class ParametersConfiguration:
         params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
         params["strategy"] = Strategy.Default
         params["paradigm"] = SolvingParadigm.MIP
+        params["quantile_intervals"] = self.__getQuantilesIntervals()
         return params
 
     def __AlphaSetup(self,instanceSize):
