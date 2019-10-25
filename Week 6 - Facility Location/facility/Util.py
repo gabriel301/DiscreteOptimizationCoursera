@@ -14,9 +14,7 @@ class Util:
         size = len(solutionDict)
         solution = [solutionDict[i] for i in range(0,size)]
         return solution
-
-   
-    
+  
     # Return the time from hour, second and secods to seconds
     @staticmethod    
     def getTimeInSeconds(hours,minutes,seconds):

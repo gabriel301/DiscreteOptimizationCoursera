@@ -15,6 +15,8 @@ class Preprocessing:
         for f1 in facilities:
             distances = []
             for f2 in facilities:
+                if f1.index == f2.index:
+                    continue
                 distances.append(Preprocessing.length(f1.location,f2.location))
             f1.distance_quantiles.extend(np.quantile(a=distances,q=intervals, interpolation='midpoint').tolist())
            

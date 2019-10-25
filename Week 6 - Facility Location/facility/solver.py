@@ -7,6 +7,7 @@ from MIP import MIP
 from ParametersConfiguration import ParametersConfiguration
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 from Preprocessing import Preprocessing
+from Forest import Forest
 import time
 import datetime
 
@@ -77,6 +78,10 @@ def solve_it(input_data):
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
         obj,assignments = getGreedyInitialSolution(facilities,customers)
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
+        #forest = Forest()
+        #forest.buildForestFromArray(Util.formatSolutionFromMIP(assignments),facilities,customers)
+        #for facility in facilities:
+            #print("Facility %s - Quantiles: %s" % (facility.index,facility.distance_quantiles))
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 
@@ -90,7 +95,6 @@ def solve_it(input_data):
     print("End DateTime: {}".format(datetime.datetime.now()))
     print("EXECUTION TIME: {:0>2}:{:0>2}:{:05.2f}s".format(int(hours),int(minutes),seconds))
     return output_data
-
 
 import sys
 

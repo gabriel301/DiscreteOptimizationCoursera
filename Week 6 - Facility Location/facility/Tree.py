@@ -1,11 +1,14 @@
-from Util import Util
+from Preprocessing import Preprocessing
 
 class Tree:
-    Root = None
-    Nodes = {}
-    Cost = 0
+    #Root = None
+    #Nodes = None
+    #Cost = 0
 
     def __init__(self,treeRoot):
+        self.Root = None
+        self.Nodes = {}
+        self.Cost = 0
         self.setRoot(treeRoot)
 
     def setRoot(self,newRoot):
@@ -16,11 +19,11 @@ class Tree:
 
     def addNode(self,node):
         self.Nodes[node.index] = node
-        self.Cost = self.Cost + Util.length(self.Root.location,node.location)
+        self.Cost = self.Cost + Preprocessing.length(self.Root.location,node.location)
 
     def removeNode(self,node):
         if node.index in self.Nodes.keys():
-            self.Cost = self.Cost - Util.length(self.Root.location,node.location)
+            self.Cost = self.Cost - Preprocessing.length(self.Root.location,node.location)
             self.Nodes.pop(node.index, None)
 
     def clearNodes(self):

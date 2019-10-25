@@ -3,16 +3,18 @@ import math
 from Preprocessing import Preprocessing
 
 class MIP:
-    facilities = []
-    customers = []
-    model = None
-    name = None
-    varFacilityAssignment,varCustomerAssignment= {},{}
+    #facilities = None
+    #customers = None
+    #model = None
+    #name = None
+    #varFacilityAssignment,varCustomerAssignment= None,None
     
     def __init__(self, f, c, instanceName): 
         self.facilities = f 
         self.customers = c 
         self.instanceName = instanceName
+        self.varFacilityAssignment = {}
+        self.varCustomerAssignment = {}
 
     def createModel(self):
         self.model = Model(self.instanceName)
