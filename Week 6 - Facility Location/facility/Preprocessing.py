@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from sklearn.cluster import MiniBatchKMeans
 
 class Preprocessing:
 
@@ -19,4 +20,18 @@ class Preprocessing:
                     continue
                 distances.append(Preprocessing.length(f1.location,f2.location))
             f1.distance_quantiles.extend(np.quantile(a=distances,q=intervals, interpolation='midpoint').tolist())
+
+    #Return quantiles for distances between facilities
+    @staticmethod   
+    def getFacilityClusters(facilities,numberClusters):
+        print("Genarating %s Clusters..."%numberClusters)
+        clusters = {}
+        dataPoints = np.array([[facility.location.x,facility.location.y] for facility in facilities])
+        kmeans = MiniBatchKMeans(n_clusters=numberClusters, random_state=0,tol=1.e-6).fit(dataPoints)
+        for facility in facilities:
+            if kmeans.labels_[facility.index] not in clusters.keys():
+                clusters[kmeans.labels_[facility.index]] = []
+            clusters.get(kmeans.labels_[facility.index]).append(facility.index)
+
+        return clusters
            

@@ -86,4 +86,12 @@ class Forest:
             customers.extend(tree.getNodes().values())
 
         return facilities,customers
-
+    
+    def updateStatistics(self):
+        self.TotalCost = 0
+        self.TotalNodes = 0
+        self.TreesCount = 0
+        for tree in self.Trees.values():
+           self.TreesCount = self.TreesCount + 1 
+           self.TotalNodes = self.TotalNodes +  len(tree.getNodes())
+           self.TotalCost = self.TotalCost + tree.getCost()

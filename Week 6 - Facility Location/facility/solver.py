@@ -11,12 +11,13 @@ from Forest import Forest
 from LNS import LNS
 import time
 import datetime
+import math
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
-def getGreedyInitialSolution(facilities,customers):
+def getTrivialInitialSolution(facilities,customers):
      # build a trivial solution
     # pack the facilities one by one until all the customers are served
     solution = [-1]*len(customers)
@@ -43,6 +44,25 @@ def getGreedyInitialSolution(facilities,customers):
         obj += Preprocessing.length(customer.location, facilities[solution[customer.index]].location)
     return obj,solution
 
+def getGreedyInitialSolution(facilities,customers):
+    return None
+
+
+def getClusters(facilities,quantileIntervals):
+    size = len(facilities)
+    clusterAreas = {}
+    lastClusterSize = 0
+    for index in range(0,len(quantileIntervals)):
+        numberClusters = round(size/(quantileIntervals[index]*100))
+        if (numberClusters == lastClusterSize):
+            continue
+        lastClusterSize = numberClusters
+        clusterAreas[index] = Preprocessing.getFacilityClusters(facilities,numberClusters)
+        #print("Cluster Level: %s || Level Size: %s"%(index,len(clusterAreas[index])))
+        #print("Clusters: %s"%clusterAreas[index])
+        #input(".....")
+    return clusterAreas
+
 def solve_it(input_data):
     start = time.time()
 
@@ -57,6 +77,7 @@ def solve_it(input_data):
     totalCapacity = 0
     totalDemand = 0
     facilities = []
+
     for i in range(1, facility_count+1):
         parts = lines[i].split()
         facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[]))
@@ -72,14 +93,6 @@ def solve_it(input_data):
     paramsConfig = ParametersConfiguration(facility_count,facility_count*customer_count)
     params = paramsConfig.getParameters()
     
-    #Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
-    #print("Facility: %s"%facilities[0].index)
-    #for quantile in facilities[0].distance_quantiles:
-    #    inside = []
-    #    for facility in facilities:
-    #        if Util.isInsideCircle(facilities[0].location,quantile,facility.location):
-    #            inside.append(facility.index)
-    #    print("Quantile: %s - Facilities nearby: %s"%(quantile,inside))
 
     print("============================================================================================================================================================")
     print("Instace Size: %s || Strategy: %s || Paradigm: %s || Improvement Type: %s" % (paramsConfig.instanceSize,params["strategy"],params["paradigm"],params["improvementType"]))
@@ -92,19 +105,16 @@ def solve_it(input_data):
         output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))
     
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
-        obj,assignments = getGreedyInitialSolution(facilities,customers)
+        obj,assignments = getTrivialInitialSolution(facilities,customers)
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
-        search = LNS(assignments,facilities,customers,params["improvementType"])
+        clusterAreas = getClusters(facilities,params["quantile_intervals"])
+        search = LNS(assignments,facilities,customers,params["improvementType"],clusterAreas)
         obj,assignments = search.optimize()
-        #forest = Forest()
-        #forest.buildForestFromArray(Util.formatSolutionFromMIP(assignments),facilities,customers)
-        #for facility in facilities:
-            #print("Facility %s - Quantiles: %s" % (facility.index,facility.distance_quantiles))
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 
     elif (params["paradigm"] == SolvingParadigm.Heuristic):
-        obj,assignments = getGreedyInitialSolution(facilities,customers)
+        obj,assignments = getTrivialInitialSolution(facilities,customers)
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 

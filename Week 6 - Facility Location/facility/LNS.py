@@ -9,17 +9,17 @@ class LNS:
     EPS = 1.e-6
     DEBUG_MESSAGES = True
 
-    def __init__(self,initialSolutionArray,facilities,customers,improvementType):
+    def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas):
         self.facilities = facilities
         self.customers = customers
         self.currentSolutionForest = Forest()
         self.currentSolutionForest.buildForestFromArray(initialSolutionArray,facilities,customers)
         self.bestSolutionForest = None
-        self.currentQuantile = 0
+        self.currentLevel = 0
         self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)))
         self.improvementType = improvementType
-
-    def __destroy(self,centerFacility):
+        self.clusterAreas = clusterAreas
+    def __destroy(self,cluster):
 
         if(self.DEBUG_MESSAGES):
             print("=============================")
@@ -27,20 +27,20 @@ class LNS:
             print("Current Forest: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes()))
 
         reassignmentCandidates = Forest()
-        for adjacentFacility in self.facilities:
-            if Util.isInsideCircle(centerFacility.location,centerFacility.distance_quantiles[self.currentQuantile],adjacentFacility.location):
-                if(adjacentFacility.index not in reassignmentCandidates.getTrees().keys()):
-                    reassignmentCandidates.addTree(Tree(adjacentFacility))
+        for facilityIndex in cluster:
+            if(facilityIndex not in reassignmentCandidates.getTrees().keys()):
+                    reassignmentCandidates.addTree(Tree(self.facilities[facilityIndex]))
                     
-                if(adjacentFacility.index in self.currentSolutionForest.getTrees().keys()):
-                    for node in self.currentSolutionForest.getTrees().get(adjacentFacility.index).getNodes().values():
-                        reassignmentCandidates.getTrees().get(adjacentFacility.index).addNode(node)
-        
+            if(facilityIndex in self.currentSolutionForest.getTrees().keys()):
+                for node in self.currentSolutionForest.getTrees().get(facilityIndex).getNodes().values():
+                    reassignmentCandidates.getTrees().get(facilityIndex).addNode(node)
+            
+        reassignmentCandidates.updateStatistics()
+
         if(self.DEBUG_MESSAGES):
             print("Facilities: %s - Customers %s"%(reassignmentCandidates.getTreesCount(),reassignmentCandidates.getTotalNodes()))
             print("Destroy Method Finished...")
             print("=============================")
-
         return reassignmentCandidates
     
     def __repair(self,candidatesFacility,candidatesCustomer):
@@ -67,6 +67,7 @@ class LNS:
         if(newObj-candidateForest.getTotalCost() < self.EPS):
             if(self.DEBUG_MESSAGES):
                 print("NEW SOLUTION FOUND")
+                
             if(self.improvementType == ImprovementType.First):
                 newSolution = Forest()
                 newSolution.buildForestFromDict(Util.getDictSolutionFromMIP(assignments),self.facilities,self.customers)
@@ -77,7 +78,11 @@ class LNS:
                     self.currentSolutionForest.removeTree(tree.getRoot().index)
 
                 for tree in newSolution.getTrees().values():
-                    self.currentSolutionForest.addTree(tree)
+                    self.currentSolutionForest.addTree(Tree(tree.getRoot()))
+                    for node in tree.getNodes().values():
+                        self.currentSolutionForest.getTrees().get(tree.getRoot().index).addNode(node)
+
+                self.currentSolutionForest.updateStatistics()
 
                 newForestObj = self.currentSolutionForest.getTotalCost()
 
@@ -102,7 +107,14 @@ class LNS:
                 for tree in newSolution.getTrees().values():
                     self.bestSolutionForest.addTree(tree)
 
-                newForestObj  = self.currentSolutionForest.getTotalCost()
+                for tree in newSolution.getTrees().values():
+                    self.bestSolutionForest.addTree(Tree(tree.getRoot()))
+                    for node in tree.getNodes().values():
+                        self.bestSolutionForest.getTrees().get(tree.getRoot().index).addNode(node)
+
+                self.currentSolutionForest.updateStatistics()
+
+                newForestObj  = self.bestSolutionForest.getTotalCost()
 
                 if(self.DEBUG_MESSAGES):
                     print("Previous Best Objective: %s || New Best Objective: %s"%(currentForestObj,newForestObj))
@@ -117,17 +129,23 @@ class LNS:
             print("=============================")
             print("LNS Optimize Method Started...")
 
-        quantilesCount = len(self.facilities[0].distance_quantiles)
-        for quantile in range(0,quantilesCount):
-            self.currentQuantile = quantile
+        levelsCount = len(self.clusterAreas)
+        for level in range(0,levelsCount):
+            self.currentLevel = level
             if(self.DEBUG_MESSAGES):
-                print("Quantile: %s/%s"%(self.currentQuantile,quantilesCount))
-            for facility in self.facilities:
-                candidateForest = self.__destroy(facility)
+                print("Level: %s/%s"%(self.currentLevel+1,levelsCount))
+            clustersCount = 0
+            for cluster in self.clusterAreas.get(level).values():
+                clustersCount = clustersCount + 1                    
+                candidateForest = self.__destroy(cluster)
                 cFacilities,cCustomers = candidateForest.getData()
                 
                 if(self.DEBUG_MESSAGES):
-                    print("Current Facility: %s || Facilities Nearby: %s || Customers Assigned: %s"%(facility.index,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
+                    print("Current Cluster: %s || Facilities: %s || Customers Assigned: %s"%(clustersCount,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
+                if(candidateForest.getTotalNodes() == 0):
+                    if(self.DEBUG_MESSAGES):
+                        print("No Customers Assigned... Continue")
+                    continue
                 obj,assignment = self.__repair(cFacilities,cCustomers)
                 self.__evaluate(obj,assignment,candidateForest)
 
