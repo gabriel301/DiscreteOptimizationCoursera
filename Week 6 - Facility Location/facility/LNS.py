@@ -88,6 +88,11 @@ class LNS:
 
                 if(self.DEBUG_MESSAGES):
                     print("Previous Objective: %s || New Objective: %s"%(currentForestObj,newForestObj))
+                    print("Partial Solution")
+                    partial =""
+                    partial = '%.2f' %self.currentSolutionForest.getTotalCost() + ' ' + str(0) + '\n'
+                    partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
+                    print(partial)
 
             elif(self.improvementType == ImprovementType.Best):
 
@@ -118,6 +123,7 @@ class LNS:
 
                 if(self.DEBUG_MESSAGES):
                     print("Previous Best Objective: %s || New Best Objective: %s"%(currentForestObj,newForestObj))
+                    
 
         if(self.DEBUG_MESSAGES):
             print("Evaluate Method Finished...")
@@ -132,16 +138,16 @@ class LNS:
         levelsCount = len(self.clusterAreas)
         for level in range(0,levelsCount):
             self.currentLevel = level
-            if(self.DEBUG_MESSAGES):
-                print("Level: %s/%s"%(self.currentLevel+1,levelsCount))
             clustersCount = 0
+            clustersSize = len(self.clusterAreas.get(level))
             for cluster in self.clusterAreas.get(level).values():
                 clustersCount = clustersCount + 1                    
                 candidateForest = self.__destroy(cluster)
                 cFacilities,cCustomers = candidateForest.getData()
                 
                 if(self.DEBUG_MESSAGES):
-                    print("Current Cluster: %s || Facilities: %s || Customers Assigned: %s"%(clustersCount,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
+                    print("Level: %s/%s"%(self.currentLevel+1,levelsCount))
+                    print("Current Cluster: %s/%s || Facilities: %s || Customers Assigned: %s"%(clustersCount,clustersSize,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
                 if(candidateForest.getTotalNodes() == 0):
                     if(self.DEBUG_MESSAGES):
                         print("No Customers Assigned... Continue")
@@ -152,7 +158,13 @@ class LNS:
             if(self.improvementType == ImprovementType.Best):
                 if self.bestSolutionForest is not None:
                     self.currentSolutionForest = Forest()
-                    self.currentSolutionForest.buildForestFromArray(self.bestSolutionForest.getAssignmentsArray,self.facilities,self.customers)
+                    self.currentSolutionForest.buildForestFromArray(self.bestSolutionForest.getAssignmentsArray(),self.facilities,self.customers)
                     self.bestSolutionForest = None
-
+            
+            if(self.DEBUG_MESSAGES):
+                print("Partial Solution")
+                partial =""
+                partial = '%.2f' %self.currentSolutionForest.getTotalCost() + ' ' + str(0) + '\n'
+                partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
+                print(partial)
         return self.currentSolutionForest.getTotalCost(),self.currentSolutionForest.getAssignmentsArray()  

@@ -44,8 +44,59 @@ def getTrivialInitialSolution(facilities,customers):
         obj += Preprocessing.length(customer.location, facilities[solution[customer.index]].location)
     return obj,solution
 
-def getGreedyInitialSolution(facilities,customers):
-    return None
+def getGreedyInitialSolution(facilities,customers,clusters):
+
+    customersToBeAssigned = {}
+    customersAssigned = []
+    assigments = []
+    clusterCapacity = [0]*len(clusters)
+
+    for customer in customers:
+        customersToBeAssigned[customer.index] = customer.index
+    
+    for key in clusters.keys():
+        for facility in clusters.get(key):
+            clusterCapacity[key] =  clusterCapacity[key] + facilities[facility].capacity
+
+    quantileIntervalSize = len(facilities[facility].distance_quantiles)
+    quantileIntervalCount = 0
+    while (len(customersToBeAssigned) > 0 and quantileIntervalCount < quantileIntervalSize):
+        for cluster in clusters.keys():
+            for facilityIndex in clusters.get(cluster):
+                for customerIndex in customersToBeAssigned.keys():
+                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalCount],customers[customerIndex].location)):
+                        if(clusterCapacity[cluster] > customers[customerIndex].demand):
+                            assigments.append((facilityIndex,customerIndex))
+                            customersAssigned.append(customerIndex)
+                            clusterCapacity[cluster]  = clusterCapacity[cluster] - customers[customerIndex].demand
+
+                for customerIndex in customersAssigned:
+                    customersToBeAssigned.pop(customerIndex,None)
+
+                customersAssigned = []
+        quantileIntervalCount = quantileIntervalCount + 1
+    
+    factor = 1.05
+    additional = 0.05
+
+    while (len(customersToBeAssigned) > 0):
+        for cluster in clusters.keys():
+            for facilityIndex in clusters.get(cluster):
+                for customerIndex in customersToBeAssigned.keys():
+                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalSize-1]*factor,customers[customerIndex].location)):
+                        if(clusterCapacity[cluster] > customers[customerIndex].demand):
+                            assigments.append((facilityIndex,customerIndex))
+                            customersAssigned.append(customerIndex)
+                            clusterCapacity[cluster]  = clusterCapacity[cluster] - customers[customerIndex].demand
+
+                for customerIndex in customersAssigned:
+                    customersToBeAssigned.pop(customerIndex,None)
+
+                customersAssigned = []
+        factor = factor + additional
+
+    return assigments
+
 
 
 def getClusters(facilities,quantileIntervals):
@@ -58,9 +109,6 @@ def getClusters(facilities,quantileIntervals):
             continue
         lastClusterSize = numberClusters
         clusterAreas[index] = Preprocessing.getFacilityClusters(facilities,numberClusters)
-        #print("Cluster Level: %s || Level Size: %s"%(index,len(clusterAreas[index])))
-        #print("Clusters: %s"%clusterAreas[index])
-        #input(".....")
     return clusterAreas
 
 def solve_it(input_data):
@@ -105,10 +153,12 @@ def solve_it(input_data):
         output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))
     
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
-        obj,assignments = getTrivialInitialSolution(facilities,customers)
+        
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
         clusterAreas = getClusters(facilities,params["quantile_intervals"])
-        search = LNS(assignments,facilities,customers,params["improvementType"],clusterAreas)
+        initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
+       
+        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas)
         obj,assignments = search.optimize()
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
