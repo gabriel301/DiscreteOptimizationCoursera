@@ -58,32 +58,16 @@ def getGreedyInitialSolution(facilities,customers,clusters):
         for facility in clusters.get(key):
             clusterCapacity[key] =  clusterCapacity[key] + facilities[facility].capacity
 
-    quantileIntervalSize = len(facilities[facility].distance_quantiles)
+    quantileIntervalSize = len(facilities[0].distance_quantiles)
     quantileIntervalCount = 0
-    while (len(customersToBeAssigned) > 0 and quantileIntervalCount < quantileIntervalSize):
-        for cluster in clusters.keys():
-            for facilityIndex in clusters.get(cluster):
-                for customerIndex in customersToBeAssigned.keys():
-                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalCount],customers[customerIndex].location)):
-                        if(clusterCapacity[cluster] > customers[customerIndex].demand):
-                            assigments.append((facilityIndex,customerIndex))
-                            customersAssigned.append(customerIndex)
-                            clusterCapacity[cluster]  = clusterCapacity[cluster] - customers[customerIndex].demand
-
-                for customerIndex in customersAssigned:
-                    customersToBeAssigned.pop(customerIndex,None)
-
-                customersAssigned = []
-        quantileIntervalCount = quantileIntervalCount + 1
-    
-    factor = 1.05
+    factor = 1.00
     additional = 0.05
-
+    print("Quantile Size: %s"%quantileIntervalSize)
     while (len(customersToBeAssigned) > 0):
         for cluster in clusters.keys():
             for facilityIndex in clusters.get(cluster):
                 for customerIndex in customersToBeAssigned.keys():
-                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalSize-1]*factor,customers[customerIndex].location)):
+                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalCount]*factor,customers[customerIndex].location)):
                         if(clusterCapacity[cluster] > customers[customerIndex].demand):
                             assigments.append((facilityIndex,customerIndex))
                             customersAssigned.append(customerIndex)
@@ -93,7 +77,12 @@ def getGreedyInitialSolution(facilities,customers,clusters):
                     customersToBeAssigned.pop(customerIndex,None)
 
                 customersAssigned = []
-        factor = factor + additional
+
+        print(quantileIntervalCount)
+        if(quantileIntervalCount+1 < quantileIntervalSize):
+            quantileIntervalCount = quantileIntervalCount + 1
+        else:
+            factor = factor + additional
 
     return assigments
 
