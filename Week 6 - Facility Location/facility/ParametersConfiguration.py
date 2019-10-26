@@ -2,9 +2,8 @@ from Util import Util
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 
 class ParametersConfiguration:
-    MAX_FACILITIES_BY_SUBPROBLEM = 0.5   #50% of total number of facilities
-    QUANTILE_INTERVALS = 5
-    
+    INITIAL_FACILITIES_BY_SUBPROBLEM = 10  #Maximum desired number of facilities in the first cluster
+   
     def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize
         self.facilityCount = facilityCount
@@ -13,15 +12,21 @@ class ParametersConfiguration:
         
 
     def __getQuantilesIntervals(self):
-        fistQuantile = self.MAX_FACILITIES_BY_SUBPROBLEM/float(self.QUANTILE_INTERVALS) 
+        firstQuantile = Util.truncate(self.INITIAL_FACILITIES_BY_SUBPROBLEM/float(self.facilityCount),10) 
+        if(firstQuantile > 1.0):
+            firstQuantile = 1
+        quantileIntervals = round(1.0/firstQuantile)
+        print(quantileIntervals)
+        intervals = [0]*quantileIntervals
+        quantile = firstQuantile
 
-        intervals = [0]*self.QUANTILE_INTERVALS
-        quantile = fistQuantile
-
-        for interval in range(0,self.QUANTILE_INTERVALS):
+        for interval in range(0,quantileIntervals):
             intervals[interval] = quantile
-            quantile = quantile + fistQuantile
-
+            quantile = Util.truncate(quantile + firstQuantile,10)
+            if(quantile > 1.0):
+                break
+        print(intervals)
+        input("....")
         return intervals
 
     def getParameters(self):
@@ -48,7 +53,6 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
-        #self.params["cluster_size"] = 
 
 
     def __AlphaSetup(self,instanceSize):

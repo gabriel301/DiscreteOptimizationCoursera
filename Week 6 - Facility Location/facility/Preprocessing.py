@@ -34,4 +34,6 @@ class Preprocessing:
             clusters.get(kmeans.labels_[facility.index]).append(facility.index)
 
         return clusters
+
+
            

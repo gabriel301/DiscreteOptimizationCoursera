@@ -62,7 +62,6 @@ def getGreedyInitialSolution(facilities,customers,clusters):
     quantileIntervalCount = 0
     factor = 1.00
     additional = 0.05
-    print("Quantile Size: %s"%quantileIntervalSize)
     while (len(customersToBeAssigned) > 0):
         for cluster in clusters.keys():
             for facilityIndex in clusters.get(cluster):
@@ -78,7 +77,6 @@ def getGreedyInitialSolution(facilities,customers,clusters):
 
                 customersAssigned = []
 
-        print(quantileIntervalCount)
         if(quantileIntervalCount+1 < quantileIntervalSize):
             quantileIntervalCount = quantileIntervalCount + 1
         else:
@@ -92,12 +90,17 @@ def getClusters(facilities,quantileIntervals):
     size = len(facilities)
     clusterAreas = {}
     lastClusterSize = 0
+    clusterSizes = []
     for index in range(0,len(quantileIntervals)):
-        numberClusters = round(size/(quantileIntervals[index]*100))
+        numberClusters = round(size/(quantileIntervals[index]*size))
         if (numberClusters == lastClusterSize):
             continue
         lastClusterSize = numberClusters
-        clusterAreas[index] = Preprocessing.getFacilityClusters(facilities,numberClusters)
+        clusterSizes.append(numberClusters)
+
+    for index in range(0,len(clusterSizes)):
+        clusterAreas[index] = Preprocessing.getFacilityClusters(facilities,clusterSizes[index])
+
     return clusterAreas
 
 def solve_it(input_data):
@@ -126,7 +129,7 @@ def solve_it(input_data):
         customers.append(Customer(i-1-facility_count, int(parts[0]), Point(float(parts[1]), float(parts[2]))))
         totalDemand = totalDemand + int(parts[0])
 
-    print("TOTAL CAPACITY: %s || TOTAL DEMAND: %s"%(totalCapacity,totalDemand))
+    #print("TOTAL CAPACITY: %s || TOTAL DEMAND: %s"%(totalCapacity,totalDemand))
     paramsConfig = ParametersConfiguration(facility_count,facility_count*customer_count)
     params = paramsConfig.getParameters()
     

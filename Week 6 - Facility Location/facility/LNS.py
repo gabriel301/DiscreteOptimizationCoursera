@@ -64,7 +64,7 @@ class LNS:
             print("Evaluate Method Started...")
             print("Current OBJ: %s || Candidate Cost %s"%(newObj,candidateForest.getTotalCost()))
 
-        if(newObj-candidateForest.getTotalCost() < self.EPS):
+        if(newObj-candidateForest.getTotalCost() <= self.EPS):
             if(self.DEBUG_MESSAGES):
                 print("NEW SOLUTION FOUND")
                 
