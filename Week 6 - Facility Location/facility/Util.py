@@ -56,3 +56,10 @@ class Util:
             return '{0:.{1}f}'.format(f, n)
         i, p, d = s.partition('.')
         return float('.'.join([i, (d+'0'*n)[:n]]))
+
+    #Return an array with indexes greater or equal than a threshold
+    @staticmethod
+    def filterbyThreshold(values,threshold,iteration):
+        size = len(values)
+        result = [i for i in range(0,size) if Util.truncate(values[i]/iteration,3) >= Util.truncate(threshold,3)]
+        return result

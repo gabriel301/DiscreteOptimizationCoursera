@@ -32,7 +32,7 @@ class Preprocessing:
             if kmeans.labels_[facility.index] not in clusters.keys():
                 clusters[kmeans.labels_[facility.index]] = []
             clusters.get(kmeans.labels_[facility.index]).append(facility.index)
-
+        
         return clusters
 
 
