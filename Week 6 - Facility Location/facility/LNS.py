@@ -9,10 +9,9 @@ class LNS:
 
     EPS = 1.e-6
     DEBUG_MESSAGES = False
-    CANDIDATE_REWARD = 0.0
     ASSIGNMENT_REWARD = 1
 
-    def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas):
+    def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas,quantiles):
         self.facilities = facilities
         self.customers = customers
         self.currentSolutionForest = Forest()
@@ -23,12 +22,30 @@ class LNS:
         self.clusterAreas = clusterAreas
         self.facilitiesAssignmentFrequency = [1]*len(facilities)
         self.facilitiesCount = len(facilities)
+        self.quantiles = []
+
+    def __getQuantiles(self):
+        firstQuantile = Util.truncate(1.0/float(len(self.clusterAreas)),10) 
+
+        quantileIntervals = len(self.clusterAreas)
+    
+        quantile = firstQuantile
+
+        for interval in range(0,quantileIntervals-1):
+            self.quantiles.append(quantile)
+            quantile = Util.truncate(quantile + firstQuantile,10)
+
+        self.quantiles.append(Util.truncate(quantile - firstQuantile,10))
+
+        #print(self.quantiles)
+        #input("....")
 
     def __getCandidateFacilities(self,cluster,demand):
 
-        prob = Util.truncate(1-math.exp(-(len(cluster)/self.facilitiesCount)),5)
+        
+        threshold = Util.truncate(self.quantiles[self.currentIteration],5)
         freqs = [self.facilitiesAssignmentFrequency[i] for i in cluster]
-        candidateIndexes = Util.filterbyThreshold(freqs,prob,self.currentIteration+1)
+        candidateIndexes = Util.filterbyThreshold(freqs,threshold,self.currentIteration+1)
         result = [cluster[i] for i in candidateIndexes]
 
         candidatesCapacity = 0
@@ -159,7 +176,11 @@ class LNS:
 
                 previousCandidates.extend(list(notInterestingFacilities))
 
-                self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
+                #reward = (1-Util.truncate(float(len(cluster)/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
+               
+                reward = Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3)
+                #self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
+                self.__updateFrequency(previousCandidates,reward)
 
                 if(self.DEBUG_MESSAGES):
                     print("Previous Objective: %s || New Objective: %s"%(currentForestObj,newForestObj))
@@ -180,14 +201,16 @@ class LNS:
             print("=============================")
             print("LNS Optimize Method Started...")
 
+        self.__getQuantiles()
         iterationsCount = len(self.clusterAreas)
-
+        customerCount = len(self.customers)
         for iteration in range(0,iterationsCount):
             self.currentIteration = iteration
             clustersCount = 0
             clustersSize = len(self.clusterAreas.get(iteration))
             for cluster in self.clusterAreas.get(iteration).values():
                 clustersCount = clustersCount + 1
+                print("Instance: %s_%s"%(self.facilitiesCount,customerCount))  
                 print("Iteration: %s/%s"%(self.currentIteration+1,iterationsCount))                
                 candidateForest = self.__destroy(cluster)
                 cFacilities,cCustomers = candidateForest.getData()
@@ -202,7 +225,7 @@ class LNS:
                 self.__evaluate(obj,assignment,candidateForest,cluster)
                 
                 print("Current Forest: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes()))
-            
+                print("Current Objective Funciton: %s"%self.currentSolutionForest.getTotalCost())
             if(self.DEBUG_MESSAGES):
                 print("Partial Solution")
                 partial =""

@@ -175,10 +175,10 @@ def solve_it(input_data):
         
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
         clusterAreas = getClusters(facilities,params["quantile_intervals"])
-        initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
-        #initialSolution = getManhatanDistanceInitialSolution(facilities,customers)
+        #initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
+        initialSolution = getManhatanDistanceInitialSolution(facilities,customers)
            
-        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas)
+        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"])
         obj,assignments = search.optimize()
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
