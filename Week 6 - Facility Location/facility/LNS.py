@@ -20,7 +20,7 @@ class LNS:
         self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)))
         self.improvementType = improvementType
         self.clusterAreas = clusterAreas
-        self.facilitiesAssignmentFrequency = [1]*len(facilities)
+        #self.facilitiesAssignmentFrequency = [1]*len(facilities)
         self.facilitiesCount = len(facilities)
         self.quantiles = []
         self.mipTimelimit = mipTimeLimit
@@ -45,7 +45,7 @@ class LNS:
 
         
         threshold = Util.truncate(self.quantiles[self.currentIteration],5)
-        freqs = [self.facilitiesAssignmentFrequency[i] for i in cluster]
+        freqs = [self.facilities[i].frequency for i in cluster]
         candidateIndexes = Util.filterbyThreshold(freqs,threshold,self.currentIteration+1)
         result = [cluster[i] for i in candidateIndexes]
 
@@ -73,7 +73,8 @@ class LNS:
     def __updateFrequency(self,facilities,reward):
 
         for index in facilities:
-            self.facilitiesAssignmentFrequency[index] = self.facilitiesAssignmentFrequency[index] + reward
+            freq = self.facilities[index].frequency + reward
+            self.facilities[index] = self.facilities[index]._replace(frequency=freq)
 
     def __destroy(self,cluster):
         
@@ -119,13 +120,13 @@ class LNS:
         self.mip.clear()
         self.mip.initialize(candidatesFacility,candidatesCustomer,"Instance_%s_%s" %(len(candidatesFacility),len(candidatesCustomer)))
         self.mip.createModel()
-        obj,assignments = self.mip.optimize(self.mipTimelimit)
+        obj,assignments,status = self.mip.optimize(self.mipTimelimit)
 
         if(self.DEBUG_MESSAGES):
             print("Repair Method Finished...")
             print("=============================")
 
-        return obj,assignments
+        return obj,assignments,status
     
     def __evaluate(self,newObj,assignments,candidateForest,cluster):
         if(self.DEBUG_MESSAGES):
@@ -172,8 +173,6 @@ class LNS:
             previousCandidates.extend(list(notInterestingFacilities))
 
             print("Current Objective: %s || Candidate Objective: %s"%(currentForestObj,newSolution.getTotalCost()))
-            if(Util.truncate(Util.truncate(self.currentSolutionForest.getTotalCost(),10) - Util.truncate(newSolution.getTotalCost(),10),10) < self.EPS):
-                print("Nova Solução é pior")
 
             if(self.improvementType == ImprovementType.Best):
                 if(Util.truncate(Util.truncate(newSolution.getTotalCost(),10) - Util.truncate(self.currentSolutionForest.getTotalCost(),10),10) <= self.EPS):
@@ -273,9 +272,12 @@ class LNS:
                         print("No Customers Assigned... Continue")
                     continue
 
-                obj,assignment = self.__repair(cFacilities,cCustomers)
-                self.__evaluate(obj,assignment,candidateForest,cluster)
-                
+                obj,assignment,status = self.__repair(cFacilities,cCustomers)
+                if(status=='optimal'):
+                    self.__evaluate(obj,assignment,candidateForest,cluster)
+                else:
+                    print("No Optimal Solution Found for this instance")
+                    
                 print("Current Forest: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes()))
                 print("Current Objective Funciton: %s"%self.currentSolutionForest.getTotalCost())
             if(self.DEBUG_MESSAGES):

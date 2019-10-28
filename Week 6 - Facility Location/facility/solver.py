@@ -14,7 +14,7 @@ import datetime
 import math
 
 Point = namedtuple("Point", ['x', 'y'])
-Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles','cost_per_capacity'])
+Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles','cost_per_capacity','frequency'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
 def getTrivialInitialSolution(facilities,customers):
@@ -147,7 +147,7 @@ def solve_it(input_data):
 
     for i in range(1, facility_count+1):
         parts = lines[i].split()
-        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[],Util.truncate(float(parts[0])/int(parts[1]),3)))
+        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[],Util.truncate(float(parts[0])/int(parts[1]),3),1.0))
         totalCapacity = totalCapacity + float(parts[0])
 
     customers = []

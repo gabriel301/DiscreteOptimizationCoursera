@@ -48,7 +48,7 @@ class ParametersConfiguration:
     
     def __DefaultSetup(self,instanceSize):
         self.params = {}
-        self.params["improvementType"] = ImprovementType.Best
+        self.params["improvementType"] = ImprovementType.First
         self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,30,0) #4 hours and 30 minutes of time limit
         self.params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
         self.params["mipTimeLimit"] = Util.getTimeInSeconds(0,30,0) #30 limits for each Mip Execution

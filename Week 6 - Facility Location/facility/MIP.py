@@ -71,7 +71,7 @@ class MIP:
         assignments = [(facility,customer) for (facility,customer) in cAssigned if self.model.getVal(cAssigned[facility,customer]) > EPS]
        
         obj = self.model.getObjVal()
-        return  obj,assignments
+        return  obj,assignments,self.model.getStatus()
     
    
 
