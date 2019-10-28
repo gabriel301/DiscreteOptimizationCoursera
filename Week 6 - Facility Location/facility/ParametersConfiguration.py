@@ -1,8 +1,8 @@
 from Util import Util
-from EnumSettings import Strategy,ImprovementType,SolvingParadigm
+from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction
 
 class ParametersConfiguration:
-    INITIAL_FACILITIES_BY_SUBPROBLEM = 5  #Maximum desired number of facilities 'in' the first cluster
+    INITIAL_FACILITIES_BY_SUBPROBLEM = 10  #Maximum desired number of facilities 'in' the first cluster
    
     def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize
@@ -55,7 +55,7 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
-
+        self.params["initialSolutionFunction"] = InitialSolutionFunction.Euclidean
 
     def __AlphaSetup(self,instanceSize):
         self.__DefaultSetup(instanceSize)

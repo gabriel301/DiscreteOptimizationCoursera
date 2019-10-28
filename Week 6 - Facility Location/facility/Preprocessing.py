@@ -6,7 +6,7 @@ class Preprocessing:
 
     #Calculate the Euclidean distance between two points
     @staticmethod    
-    def length(point1, point2):
+    def getEuclideanDistance(point1, point2):
         return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
     #Return quantiles for distances between facilities
@@ -18,7 +18,7 @@ class Preprocessing:
             for f2 in facilities:
                 if f1.index == f2.index:
                     continue
-                distances.append(Preprocessing.length(f1.location,f2.location))
+                distances.append(Preprocessing.getEuclideanDistance(f1.location,f2.location))
             f1.distance_quantiles.extend(np.quantile(a=distances,q=intervals, interpolation='midpoint').tolist())
 
     #Return quantiles for distances between facilities
@@ -34,6 +34,11 @@ class Preprocessing:
             clusters.get(kmeans.labels_[facility.index]).append(facility.index)
         
         return clusters
+
+    #Calculate the Manhatan distance between two points
+    @staticmethod
+    def getManhatanDistance(p1,p2):
+       return  math.fabs(p1.x-p2.x) + math.fabs(p1.y-p2.y)
 
 
            
