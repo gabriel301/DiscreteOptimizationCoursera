@@ -51,7 +51,7 @@ class MIP:
         
         print("Creating Objective Function...")
         #Objective Function
-        self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(Preprocessing.length(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
+        self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(Preprocessing.getEuclideanDistance(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
         self.model.data = self.varFacilityAssignment, self.varCustomerAssignment
 
     def optimize(self,timeLimit):

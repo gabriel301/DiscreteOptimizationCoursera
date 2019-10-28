@@ -16,11 +16,11 @@ class Tree:
 
     def addNode(self,node):
         self.Nodes[node.index] = node
-        self.Cost = self.Cost + Preprocessing.length(self.Root.location,node.location)
+        self.Cost = self.Cost + Preprocessing.getEuclideanDistance(self.Root.location,node.location)
 
     def removeNode(self,node):
         if node.index in self.Nodes.keys():
-            self.Cost = self.Cost - Preprocessing.length(self.Root.location,node.location)
+            self.Cost = self.Cost - Preprocessing.getEuclideanDistance(self.Root.location,node.location)
             self.Nodes.pop(node.index, None)
 
     def clearNodes(self):
