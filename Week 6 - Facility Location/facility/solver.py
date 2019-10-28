@@ -17,120 +17,7 @@ Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles','cost_per_capacity','frequency'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
-def getTrivialInitialSolution(facilities,customers):
-     # build a trivial solution
-    # pack the facilities one by one until all the customers are served
-    solution = [-1]*len(customers)
-    capacity_remaining = [f.capacity for f in facilities]
 
-    facility_index = 0
-    for customer in customers:
-        if capacity_remaining[facility_index] >= customer.demand:
-            solution[customer.index] = facility_index
-            capacity_remaining[facility_index] -= customer.demand
-        else:
-            facility_index += 1
-            assert capacity_remaining[facility_index] >= customer.demand
-            solution[customer.index] = facility_index
-            capacity_remaining[facility_index] -= customer.demand
-
-    used = [0]*len(facilities)
-    for facility_index in solution:
-        used[facility_index] = 1
-
-    # calculate the cost of the solution
-    obj = sum([f.setup_cost*used[f.index] for f in facilities])
-    for customer in customers:
-        obj += Preprocessing.getEuclideanDistance(customer.location, facilities[solution[customer.index]].location)
-    return obj,solution
-
-def getRadiusDistanceInitialSolution(facilities,customers,clusters):
-    customersToBeAssigned = {}
-    customersAssigned = []
-    assigments = []
-    clusterCapacity = [0]*len(clusters)
-
-    for customer in customers:
-        customersToBeAssigned[customer.index] = customer.index
-    
-    for key in clusters.keys():
-        for facility in clusters.get(key):
-            clusterCapacity[key] =  clusterCapacity[key] + facilities[facility].capacity
-
-    quantileIntervalSize = len(facilities[0].distance_quantiles)
-    quantileIntervalCount = 0
-    factor = 1.00
-    additional = 0.05
-    while (len(customersToBeAssigned) > 0):
-        for cluster in clusters.keys():
-            for facilityIndex in clusters.get(cluster):
-                for customerIndex in customersToBeAssigned.keys():
-                    if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalCount]*factor,customers[customerIndex].location)):
-                        if(clusterCapacity[cluster] > customers[customerIndex].demand):
-                            assigments.append((facilityIndex,customerIndex))
-                            customersAssigned.append(customerIndex)
-                            clusterCapacity[cluster]  = clusterCapacity[cluster] - customers[customerIndex].demand
-
-                for customerIndex in customersAssigned:
-                    customersToBeAssigned.pop(customerIndex,None)
-
-                customersAssigned.clear()
-
-        if(quantileIntervalCount+1 < quantileIntervalSize):
-            quantileIntervalCount = quantileIntervalCount + 1
-        else:
-            factor = factor + additional
-
-    return assigments
-
-def getNearestNeighbourInitialSolution(facilities,customers,distanceType):
-    customersToBeAssigned = {}
-    assigments = []
-    customersAssigned = []
-    remainingCapacity = [facility.capacity for facility in facilities]
-    for customer in customers:
-        customersToBeAssigned[customer.index] = customer.index
-
-    while (len(customersToBeAssigned) > 0):
-        for customerIndex in customersToBeAssigned.keys():
-            minDistanceIndex = -1
-            currMinDistance = float("inf")
-            for facility in facilities:
-                if(distanceType == InitialSolutionFunction.Manhatan):
-                    currDistance = Preprocessing.getManhatanDistance(facility.location,customers[customerIndex].location)
-                else:
-                    currDistance = Preprocessing.getEuclideanDistance(facility.location,customers[customerIndex].location)
-
-                if currDistance < currMinDistance and remainingCapacity[facility.index] >= customers[customerIndex].demand:
-                    currMinDistance = currDistance
-                    minDistanceIndex = facility.index
-
-            assigments.append((minDistanceIndex,customerIndex))
-            remainingCapacity[minDistanceIndex] = remainingCapacity[minDistanceIndex] - customers[customerIndex].demand
-            customersAssigned.append(customerIndex)
-
-        for customerIndex in customersAssigned:
-            customersToBeAssigned.pop(customerIndex,None)
-
-        customersAssigned.clear()
-    return assigments
-
-def getClusters(facilities,quantileIntervals):
-    size = len(facilities)
-    clusterAreas = {}
-    lastClusterSize = 0
-    clusterSizes = []
-    for index in range(0,len(quantileIntervals)):
-        numberClusters = round(size/(quantileIntervals[index]*size))
-        if (numberClusters == lastClusterSize):
-            continue
-        lastClusterSize = numberClusters
-        clusterSizes.append(numberClusters)
-
-    for index in range(0,len(clusterSizes)):
-        clusterAreas[index] = Preprocessing.getFacilityClusters(facilities,clusterSizes[index])
-
-    return clusterAreas
 
 def solve_it(input_data):
     start = time.time()
@@ -176,11 +63,11 @@ def solve_it(input_data):
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
         
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
-        clusterAreas = getClusters(facilities,params["quantile_intervals"])
+        clusterAreas = Preprocessing.getClusters(facilities,params["quantile_intervals"])
         if(params["initialSolutionFunction"] == InitialSolutionFunction.Radius):
-            initialSolution = getRadiusDistanceInitialSolution(facilities,customers,clusterAreas.get(0))
+            initialSolution = Preprocessing.getRadiusDistanceInitialSolution(facilities,customers,clusterAreas.get(0))
         else:
-            initialSolution = getNearestNeighbourInitialSolution(facilities,customers,params["initialSolutionFunction"])
+            initialSolution = Preprocessing.getNearestNeighbourInitialSolution(facilities,customers,params["initialSolutionFunction"])
            
         search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"],params["mipTimeLimit"])
         obj,assignments = search.optimize()
@@ -188,7 +75,7 @@ def solve_it(input_data):
         output_data += ' '.join(map(str,assignments))
 
     elif (params["paradigm"] == SolvingParadigm.Heuristic):
-        obj,assignments = getTrivialInitialSolution(facilities,customers)
+        obj,assignments = Preprocessing.getTrivialInitialSolution(facilities,customers)
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))
 

@@ -20,7 +20,6 @@ class LNS:
         self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)))
         self.improvementType = improvementType
         self.clusterAreas = clusterAreas
-        #self.facilitiesAssignmentFrequency = [1]*len(facilities)
         self.facilitiesCount = len(facilities)
         self.quantiles = []
         self.mipTimelimit = mipTimeLimit
@@ -38,8 +37,6 @@ class LNS:
 
         self.quantiles.append(Util.truncate(quantile - firstQuantile,10))
 
-        #print(self.quantiles)
-        #input("....")
 
     def __getCandidateFacilities(self,cluster,demand):
 
@@ -190,11 +187,9 @@ class LNS:
                         previousCandidates = list(newFacilities)
 
                     previousCandidates.extend(list(notInterestingFacilities))
-
-                    #reward = (1-Util.truncate(float(len(cluster)/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
                
                     reward = Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3)
-                    #self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
+
                     self.__updateFrequency(previousCandidates,reward)
 
                     if(self.DEBUG_MESSAGES):
@@ -222,11 +217,9 @@ class LNS:
                     previousCandidates = list(newFacilities)
 
                 previousCandidates.extend(list(notInterestingFacilities))
-
-                #reward = (1-Util.truncate(float(len(cluster)/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
                
                 reward = Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3)
-                #self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
+
                 self.__updateFrequency(previousCandidates,reward)
 
                 if(self.DEBUG_MESSAGES):
