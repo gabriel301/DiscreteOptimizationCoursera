@@ -63,3 +63,8 @@ class Util:
         size = len(values)
         result = [i for i in range(0,size) if Util.truncate(values[i]/iteration,3) >= Util.truncate(threshold,3)]
         return result
+    
+    #Return an array with indexes greater or equal than a threshold
+    @staticmethod
+    def getManhatanDistance(p1,p2):
+       return  math.fabs(p1.x-p2.x) + math.fabs(p1.y-p2.y)

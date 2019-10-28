@@ -8,14 +8,15 @@ import math
 class LNS:
 
     EPS = 1.e-6
-    DEBUG_MESSAGES = True
+    DEBUG_MESSAGES = False
+    CANDIDATE_REWARD = 0.0
+    ASSIGNMENT_REWARD = 1
 
     def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas):
         self.facilities = facilities
         self.customers = customers
         self.currentSolutionForest = Forest()
         self.currentSolutionForest.buildForestFromArray(initialSolutionArray,facilities,customers)
-        self.bestSolutionForest = None
         self.currentIteration = 0
         self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)))
         self.improvementType = improvementType
@@ -23,26 +24,55 @@ class LNS:
         self.facilitiesAssignmentFrequency = [1]*len(facilities)
         self.facilitiesCount = len(facilities)
 
-    def __getCandidateFacilities(self,cluster):
+    def __getCandidateFacilities(self,cluster,demand):
+
         prob = Util.truncate(1-math.exp(-(len(cluster)/self.facilitiesCount)),5)
         freqs = [self.facilitiesAssignmentFrequency[i] for i in cluster]
         candidateIndexes = Util.filterbyThreshold(freqs,prob,self.currentIteration+1)
         result = [cluster[i] for i in candidateIndexes]
+
+        candidatesCapacity = 0
+        for index in result:
+            candidatesCapacity = candidatesCapacity + self.facilities[index].capacity
+
+        print("Demand: %s || Capacity: %s"%(demand,candidatesCapacity))
+        
+        if(candidatesCapacity < demand):
+            remainingFacilitiesIndex = set(cluster).difference(set(cluster).intersection(set(result)))
+            remainingFacilities = [self.facilities[i] for i in remainingFacilitiesIndex]
+            remainingFacilities.sort(key=lambda x: x.cost_per_capacity, reverse=True)
+            print("Demand above Capacity")
+            for facility in remainingFacilities:
+                result.append(facility.index)
+                candidatesCapacity = candidatesCapacity + facility.capacity
+                if(candidatesCapacity >= demand):
+                    print("Demand: %s || New Capacity: %s"%(demand,candidatesCapacity))
+                    break
+
         return result
 
 
-    def __updateFrequency(self,facilities):
+    def __updateFrequency(self,facilities,reward):
 
         for index in facilities:
-            self.facilitiesAssignmentFrequency[index] = self.facilitiesAssignmentFrequency[index] + 1
+            self.facilitiesAssignmentFrequency[index] = self.facilitiesAssignmentFrequency[index] + reward
 
     def __destroy(self,cluster):
         
-        candidateFacilities = self.__getCandidateFacilities(cluster)
+        
         if(self.DEBUG_MESSAGES):
             print("=============================")
             print("Destroy Method Started...")
-            print("Current Forest: %s/%s - Candidate Facilities: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes(),len(candidateFacilities),len(cluster)))
+
+        clusterDemand = 0   
+        for facilityIndex in cluster:
+            if(facilityIndex in self.currentSolutionForest.getTrees().keys()):
+                for node in self.currentSolutionForest.getTrees().get(facilityIndex).getNodes().values():
+                    clusterDemand = clusterDemand + node.demand
+
+        candidateFacilities = self.__getCandidateFacilities(cluster,clusterDemand)
+
+        print("Current Forest: %s/%s - Candidate Facilities: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes(),len(candidateFacilities),len(cluster)))
        
         reassignmentCandidates = Forest()
 
@@ -50,9 +80,10 @@ class LNS:
             if(facilityIndex not in reassignmentCandidates.getTrees().keys()):
                     reassignmentCandidates.addTree(Tree(self.facilities[facilityIndex]))
                     
+        for facilityIndex in cluster:
             if(facilityIndex in self.currentSolutionForest.getTrees().keys()):
                 for node in self.currentSolutionForest.getTrees().get(facilityIndex).getNodes().values():
-                    reassignmentCandidates.getTrees().get(facilityIndex).addNode(node)
+                    reassignmentCandidates.getTrees().get(candidateFacilities[0]).addNode(node)
             
         reassignmentCandidates.updateStatistics()
 
@@ -60,6 +91,7 @@ class LNS:
             print("Facilities: %s - Customers %s"%(reassignmentCandidates.getTreesCount(),reassignmentCandidates.getTotalNodes()))
             print("Destroy Method Finished...")
             print("=============================")
+
         return reassignmentCandidates
     
     def __repair(self,candidatesFacility,candidatesCustomer):
@@ -77,7 +109,7 @@ class LNS:
 
         return obj,assignments
     
-    def __evaluate(self,newObj,assignments,candidateForest):
+    def __evaluate(self,newObj,assignments,candidateForest,cluster):
         if(self.DEBUG_MESSAGES):
             print("=============================")
             print("Evaluate Method Started...")
@@ -92,21 +124,42 @@ class LNS:
                 newSolution.buildForestFromDict(Util.getDictSolutionFromMIP(assignments),self.facilities,self.customers)
                 
                 currentForestObj = self.currentSolutionForest.getTotalCost()
-                newFacilities=[]
+                newFacilities= set()
+                previousFacilities = set()
+               
                 for tree in candidateForest.getTrees().values():
                     self.currentSolutionForest.removeTree(tree.getRoot().index)
+                    previousFacilities.add(tree.getRoot().index)
 
+                
                 for tree in newSolution.getTrees().values():
                     self.currentSolutionForest.addTree(Tree(tree.getRoot()))
-                    newFacilities.append(tree.getRoot().index)
+                    newFacilities.add(tree.getRoot().index)
                     for node in tree.getNodes().values():
                         self.currentSolutionForest.getTrees().get(tree.getRoot().index).addNode(node)
 
+                #Facilities that were in the solution, but was not even selected as candidates
+                clusterIntersection = set([tree.getRoot().index for tree in self.currentSolutionForest.getTrees().values()]).intersection(cluster)
+                notInterestingFacilities  = clusterIntersection.difference(previousFacilities)
+
+                for facilityIndex in notInterestingFacilities:
+                    self.currentSolutionForest.removeTree(facilityIndex)
+                
                 self.currentSolutionForest.updateStatistics()
 
                 newForestObj = self.currentSolutionForest.getTotalCost()
                 
-                self.__updateFrequency(newFacilities)
+                self.__updateFrequency(list(newFacilities),self.ASSIGNMENT_REWARD)
+
+
+                previousCandidates = list(previousFacilities.difference(newFacilities.intersection(previousFacilities)))
+
+                if(len(previousCandidates)==0):
+                    previousCandidates = list(newFacilities)
+
+                previousCandidates.extend(list(notInterestingFacilities))
+
+                self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
 
                 if(self.DEBUG_MESSAGES):
                     print("Previous Objective: %s || New Objective: %s"%(currentForestObj,newForestObj))
@@ -116,36 +169,6 @@ class LNS:
                     partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
                     print(partial)
 
-            elif(self.improvementType == ImprovementType.Best):
-
-                if(self.bestSolutionForest is None):
-                    currentForestObj = self.currentSolutionForest.getTotalCost()
-                else:
-                    currentForestObj = self.bestSolutionForest.getTotalCost()         
-                
-                self.bestSolutionForest = Forest()
-                newSolution = Forest()
-                newSolution.buildForestFromDict(Util.getDictSolutionFromMIP(assignments),self.facilities,self.customers)
-                self.bestSolutionForest.buildForestFromArray(self.currentSolutionForest.getAssignmentsArray(),self.facilities,self.customers)
-
-                for tree in candidateForest.getTrees().values():
-                    self.bestSolutionForest.removeTree(tree.getRoot().index)
-
-                for tree in newSolution.getTrees().values():
-                    self.bestSolutionForest.addTree(tree)
-
-                for tree in newSolution.getTrees().values():
-                    self.bestSolutionForest.addTree(Tree(tree.getRoot()))
-                    for node in tree.getNodes().values():
-                        self.bestSolutionForest.getTrees().get(tree.getRoot().index).addNode(node)
-
-                self.currentSolutionForest.updateStatistics()
-
-                newForestObj  = self.bestSolutionForest.getTotalCost()
-
-                if(self.DEBUG_MESSAGES):
-                    print("Previous Best Objective: %s || New Best Objective: %s"%(currentForestObj,newForestObj))
-                    
 
         if(self.DEBUG_MESSAGES):
             print("Evaluate Method Finished...")
@@ -158,33 +181,27 @@ class LNS:
             print("LNS Optimize Method Started...")
 
         iterationsCount = len(self.clusterAreas)
+
         for iteration in range(0,iterationsCount):
             self.currentIteration = iteration
             clustersCount = 0
             clustersSize = len(self.clusterAreas.get(iteration))
             for cluster in self.clusterAreas.get(iteration).values():
                 clustersCount = clustersCount + 1
-                if(self.DEBUG_MESSAGES):
-                    print("Iteration: %s/%s"%(self.currentIteration+1,iterationsCount))                
+                print("Iteration: %s/%s"%(self.currentIteration+1,iterationsCount))                
                 candidateForest = self.__destroy(cluster)
                 cFacilities,cCustomers = candidateForest.getData()
                 
-                if(self.DEBUG_MESSAGES):
-                    #print("Iteration: %s/%s"%(self.currentIteration+1,iterationsCount))
-                    print("Current Cluster: %s/%s || Facilities: %s || Customers Assigned: %s"%(clustersCount,clustersSize,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
+                print("Current Cluster: %s/%s || Facilities: %s || Customers Assigned: %s"%(clustersCount,clustersSize,candidateForest.getTreesCount(),candidateForest.getTotalNodes()))
                 if(candidateForest.getTotalNodes() == 0):
                     if(self.DEBUG_MESSAGES):
                         print("No Customers Assigned... Continue")
                     continue
-                obj,assignment = self.__repair(cFacilities,cCustomers)
-                self.__evaluate(obj,assignment,candidateForest)
 
-            if(self.improvementType == ImprovementType.Best):
-                if self.bestSolutionForest is not None:
-                    self.currentSolutionForest = Forest()
-                    self.currentSolutionForest.buildForestFromArray(self.bestSolutionForest.getAssignmentsArray(),self.facilities,self.customers)
-                    self.bestSolutionForest = None    
-                    self.__updateFrequency(self.bestSolutionForest.getAssignmentsArray())
+                obj,assignment = self.__repair(cFacilities,cCustomers)
+                self.__evaluate(obj,assignment,candidateForest,cluster)
+                
+                print("Current Forest: %s/%s"%(self.currentSolutionForest.getTreesCount(),self.currentSolutionForest.getTotalNodes()))
             
             if(self.DEBUG_MESSAGES):
                 print("Partial Solution")
@@ -192,4 +209,5 @@ class LNS:
                 partial = '%.2f' %self.currentSolutionForest.getTotalCost() + ' ' + str(0) + '\n'
                 partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
                 print(partial)
+
         return self.currentSolutionForest.getTotalCost(),self.currentSolutionForest.getAssignmentsArray()  

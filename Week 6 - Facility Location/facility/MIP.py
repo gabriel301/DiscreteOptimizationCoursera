@@ -3,7 +3,7 @@ import math
 from Preprocessing import Preprocessing
 
 class MIP:
-    DEBUG_MESSAGES = True
+    DEBUG_MESSAGES = False
 
     def __init__(self, f, c, instanceName): 
         self.initialize(f,c,instanceName)
@@ -64,7 +64,9 @@ class MIP:
         print("Instace: %s solved." % self.instanceName)
         EPS = 1.e-6
         _,cAssigned = self.model.data
+
         assignments = [(facility,customer) for (facility,customer) in cAssigned if self.model.getVal(cAssigned[facility,customer]) > EPS]
+       
         obj = self.model.getObjVal()
         return  obj,assignments
     

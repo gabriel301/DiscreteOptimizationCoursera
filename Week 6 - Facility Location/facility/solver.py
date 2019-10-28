@@ -14,7 +14,7 @@ import datetime
 import math
 
 Point = namedtuple("Point", ['x', 'y'])
-Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles'])
+Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location','distance_quantiles','cost_per_capacity'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
 def getTrivialInitialSolution(facilities,customers):
@@ -75,7 +75,7 @@ def getGreedyInitialSolution(facilities,customers,clusters):
                 for customerIndex in customersAssigned:
                     customersToBeAssigned.pop(customerIndex,None)
 
-                customersAssigned = []
+                customersAssigned.clear()
 
         if(quantileIntervalCount+1 < quantileIntervalSize):
             quantileIntervalCount = quantileIntervalCount + 1
@@ -84,7 +84,34 @@ def getGreedyInitialSolution(facilities,customers,clusters):
 
     return assigments
 
+def getManhatanDistanceInitialSolution(facilities,customers):
 
+    customersToBeAssigned = {}
+    assigments = []
+    customersAssigned = []
+    remainingCapacity = [facility.capacity for facility in facilities]
+    for customer in customers:
+        customersToBeAssigned[customer.index] = customer.index
+
+    while (len(customersToBeAssigned) > 0):
+        for customerIndex in customersToBeAssigned.keys():
+            minDistanceIndex = -1
+            currMinDistance = float("inf")
+            for facility in facilities:
+                currDistance = Util.getManhatanDistance(facility.location,customers[customerIndex].location)
+                if currDistance < currMinDistance and remainingCapacity[facility.index] >= customers[customerIndex].demand:
+                    currMinDistance = currDistance
+                    minDistanceIndex = facility.index
+
+            assigments.append((minDistanceIndex,customerIndex))
+            remainingCapacity[minDistanceIndex] = remainingCapacity[minDistanceIndex] - customers[customerIndex].demand
+            customersAssigned.append(customerIndex)
+
+        for customerIndex in customersAssigned:
+            customersToBeAssigned.pop(customerIndex,None)
+
+        customersAssigned.clear()
+    return assigments
 
 def getClusters(facilities,quantileIntervals):
     size = len(facilities)
@@ -120,7 +147,7 @@ def solve_it(input_data):
 
     for i in range(1, facility_count+1):
         parts = lines[i].split()
-        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[]))
+        facilities.append(Facility(i-1, float(parts[0]), int(parts[1]), Point(float(parts[2]), float(parts[3])),[],Util.truncate(float(parts[0])/int(parts[1]),3)))
         totalCapacity = totalCapacity + float(parts[0])
 
     customers = []
@@ -149,7 +176,8 @@ def solve_it(input_data):
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
         clusterAreas = getClusters(facilities,params["quantile_intervals"])
         initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
-       
+        #initialSolution = getManhatanDistanceInitialSolution(facilities,customers)
+           
         search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas)
         obj,assignments = search.optimize()
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'

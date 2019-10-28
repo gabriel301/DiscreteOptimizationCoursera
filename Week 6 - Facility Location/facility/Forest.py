@@ -41,6 +41,7 @@ class Forest:
 
     def buildForestFromDict(self,assignments,facilities,customers):
         print("Building Forest from Assignment Dict...")
+    
         for customer in assignments.keys():
             if(assignments.get(customer) not in self.Trees.keys()):
                 self.Trees[assignments.get(customer)] = Tree(facilities[assignments.get(customer)])
@@ -52,8 +53,9 @@ class Forest:
             self.TotalNodes = self.TotalNodes + len(tree.getNodes())
             self.TreesCount = self.TreesCount + 1  
 
+
     def getAssignmentsArray(self):
-        assignments = [-1]*self.TotalNodes
+        assignments = [None]*self.TotalNodes
         for tree in self.Trees.values():
             for node in tree.getNodes().values():
                 assignments[node.index] = tree.getRoot().index
@@ -95,3 +97,4 @@ class Forest:
            self.TreesCount = self.TreesCount + 1 
            self.TotalNodes = self.TotalNodes +  len(tree.getNodes())
            self.TotalCost = self.TotalCost + tree.getCost()
+

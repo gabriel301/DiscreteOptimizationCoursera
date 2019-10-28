@@ -2,7 +2,7 @@ from Util import Util
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm
 
 class ParametersConfiguration:
-    INITIAL_FACILITIES_BY_SUBPROBLEM = 15  #Maximum desired number of facilities 'in' the first cluster
+    INITIAL_FACILITIES_BY_SUBPROBLEM = 5  #Maximum desired number of facilities 'in' the first cluster
    
     def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize
@@ -26,7 +26,7 @@ class ParametersConfiguration:
             if(quantile > 1.0):
                 break
         result = [interval for interval in intervals if interval > 0 ]    
-            
+
         return result
 
     def getParameters(self):
