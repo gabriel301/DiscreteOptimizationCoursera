@@ -20,3 +20,9 @@ class SolvingParadigm(Enum):
     MIP = "MIP"
     Heuristic = "Heuristic"
     Hybrid = "Hybrid"
+
+#   Enum to choose the initial solution function
+class InitialSolutionFunction(Enum):
+    Radius = "Radius"
+    Euclidean = "Euclidean"
+    Manhatan = "Manhatan"

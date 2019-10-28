@@ -5,7 +5,7 @@ from collections import namedtuple
 from Util import Util
 from MIP import MIP
 from ParametersConfiguration import ParametersConfiguration
-from EnumSettings import Strategy,ImprovementType,SolvingParadigm
+from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction
 from Preprocessing import Preprocessing
 from Forest import Forest
 from LNS import LNS
@@ -41,11 +41,10 @@ def getTrivialInitialSolution(facilities,customers):
     # calculate the cost of the solution
     obj = sum([f.setup_cost*used[f.index] for f in facilities])
     for customer in customers:
-        obj += Preprocessing.length(customer.location, facilities[solution[customer.index]].location)
+        obj += Preprocessing.getEuclideanDistance(customer.location, facilities[solution[customer.index]].location)
     return obj,solution
 
-def getGreedyInitialSolution(facilities,customers,clusters):
-
+def getRadiusDistanceInitialSolution(facilities,customers,clusters):
     customersToBeAssigned = {}
     customersAssigned = []
     assigments = []
@@ -84,8 +83,7 @@ def getGreedyInitialSolution(facilities,customers,clusters):
 
     return assigments
 
-def getManhatanDistanceInitialSolution(facilities,customers):
-
+def getNearestNeighbourInitialSolution(facilities,customers,distanceType):
     customersToBeAssigned = {}
     assigments = []
     customersAssigned = []
@@ -98,7 +96,11 @@ def getManhatanDistanceInitialSolution(facilities,customers):
             minDistanceIndex = -1
             currMinDistance = float("inf")
             for facility in facilities:
-                currDistance = Util.getManhatanDistance(facility.location,customers[customerIndex].location)
+                if(distanceType == InitialSolutionFunction.Manhatan):
+                    currDistance = Preprocessing.getManhatanDistance(facility.location,customers[customerIndex].location)
+                else:
+                    currDistance = Preprocessing.getEuclideanDistance(facility.location,customers[customerIndex].location)
+
                 if currDistance < currMinDistance and remainingCapacity[facility.index] >= customers[customerIndex].demand:
                     currMinDistance = currDistance
                     minDistanceIndex = facility.index
@@ -175,8 +177,10 @@ def solve_it(input_data):
         
         Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
         clusterAreas = getClusters(facilities,params["quantile_intervals"])
-        #initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
-        initialSolution = getManhatanDistanceInitialSolution(facilities,customers)
+        if(params["initialSolutionFunction"] == InitialSolutionFunction.Radius):
+            initialSolution = getRadiusDistanceInitialSolution(facilities,customers,clusterAreas.get(0))
+        else:
+            initialSolution = getNearestNeighbourInitialSolution(facilities,customers,params["initialSolutionFunction"])
            
         search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"],params["mipTimeLimit"])
         obj,assignments = search.optimize()
