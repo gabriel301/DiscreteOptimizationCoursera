@@ -167,7 +167,7 @@ def solve_it(input_data):
     if(params["paradigm"] == SolvingParadigm.MIP):
         instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
         instance.createModel()
-        obj,assignments = instance.optimize()
+        obj,assignments = instance.optimize(params["mipTimeLimit"])
         output_data = '%.2f' % obj + ' ' + str(1) + '\n'
         output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))
     
@@ -178,7 +178,7 @@ def solve_it(input_data):
         #initialSolution = getGreedyInitialSolution(facilities,customers,clusterAreas.get(0))
         initialSolution = getManhatanDistanceInitialSolution(facilities,customers)
            
-        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"])
+        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"],params["mipTimeLimit"])
         obj,assignments = search.optimize()
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))

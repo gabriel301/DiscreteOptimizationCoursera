@@ -131,66 +131,74 @@ class LNS:
         if(self.DEBUG_MESSAGES):
             print("=============================")
             print("Evaluate Method Started...")
-            print("Current OBJ: %s || Candidate Cost %s"%(newObj,candidateForest.getTotalCost()))
+            print("Current Partial Objective: %s || Candidate Partial Objective %s"%(newObj,candidateForest.getTotalCost()))
 
         if(newObj-candidateForest.getTotalCost() <= self.EPS):
-            if(self.DEBUG_MESSAGES):
-                print("NEW SOLUTION FOUND")
                 
             if(self.improvementType == ImprovementType.First):
                 newSolution = Forest()
-                newSolution.buildForestFromDict(Util.getDictSolutionFromMIP(assignments),self.facilities,self.customers)
-                
+                newSolution.buildForestFromArray(self.currentSolutionForest.getAssignmentsArray(),self.facilities,self.customers)
+                partialSolution = Forest()
+                partialSolution.buildForestFromDict(Util.getDictSolutionFromMIP(assignments),self.facilities,self.customers)
                 currentForestObj = self.currentSolutionForest.getTotalCost()
+
                 newFacilities= set()
                 previousFacilities = set()
                
                 for tree in candidateForest.getTrees().values():
-                    self.currentSolutionForest.removeTree(tree.getRoot().index)
+                    newSolution.removeTree(tree.getRoot().index)
                     previousFacilities.add(tree.getRoot().index)
 
                 
-                for tree in newSolution.getTrees().values():
-                    self.currentSolutionForest.addTree(Tree(tree.getRoot()))
+                for tree in partialSolution.getTrees().values():
+                    newSolution.addTree(Tree(tree.getRoot()))
                     newFacilities.add(tree.getRoot().index)
                     for node in tree.getNodes().values():
-                        self.currentSolutionForest.getTrees().get(tree.getRoot().index).addNode(node)
+                        newSolution.getTrees().get(tree.getRoot().index).addNode(node)
 
                 #Facilities that were in the solution, but was not even selected as candidates
                 clusterIntersection = set([tree.getRoot().index for tree in self.currentSolutionForest.getTrees().values()]).intersection(cluster)
                 notInterestingFacilities  = clusterIntersection.difference(previousFacilities)
 
                 for facilityIndex in notInterestingFacilities:
-                    self.currentSolutionForest.removeTree(facilityIndex)
+                    newSolution.removeTree(facilityIndex)
                 
-                self.currentSolutionForest.updateStatistics()
+                newSolution.updateStatistics()
 
-                newForestObj = self.currentSolutionForest.getTotalCost()
+                if(self.currentSolutionForest.getTotalCost() >= newSolution.getTotalCost()):
+                    if(self.DEBUG_MESSAGES):
+                        print("NEW SOLUTION FOUND!")
+                    self.currentSolutionForest.buildForestFromArray(newSolution.getAssignmentsArray(),self.facilities,self.customers)
+                    
+                    newForestObj = self.currentSolutionForest.getTotalCost()
                 
-                self.__updateFrequency(list(newFacilities),self.ASSIGNMENT_REWARD)
+                    self.__updateFrequency(list(newFacilities),self.ASSIGNMENT_REWARD)
 
 
-                previousCandidates = list(previousFacilities.difference(newFacilities.intersection(previousFacilities)))
+                    previousCandidates = list(previousFacilities.difference(newFacilities.intersection(previousFacilities)))
 
-                if(len(previousCandidates)==0):
-                    previousCandidates = list(newFacilities)
+                    if(len(previousCandidates)==0):
+                        previousCandidates = list(newFacilities)
 
-                previousCandidates.extend(list(notInterestingFacilities))
+                    previousCandidates.extend(list(notInterestingFacilities))
 
-                #reward = (1-Util.truncate(float(len(cluster)/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
+                    #reward = (1-Util.truncate(float(len(cluster)/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
                
-                reward = Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3)
-                #self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
-                self.__updateFrequency(previousCandidates,reward)
+                    reward = Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3)
+                    #self.__updateFrequency(previousCandidates,Util.truncate(float(len(newFacilities))/float(len(previousCandidates)),3))
+                    self.__updateFrequency(previousCandidates,reward)
 
-                if(self.DEBUG_MESSAGES):
-                    print("Previous Objective: %s || New Objective: %s"%(currentForestObj,newForestObj))
-                    print("Partial Solution")
-                    partial =""
-                    partial = '%.2f' %self.currentSolutionForest.getTotalCost() + ' ' + str(0) + '\n'
-                    partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
-                    print(partial)
-
+                    if(self.DEBUG_MESSAGES):
+                        print("Previous Objective: %s || New Objective: %s"%(currentForestObj,newForestObj))
+                        print("Partial Solution")
+                        partial =""
+                        partial = '%.2f' %self.currentSolutionForest.getTotalCost() + ' ' + str(0) + '\n'
+                        partial += ' '.join(map(str,self.currentSolutionForest.getAssignmentsArray()))
+                        print(partial)
+                else:
+                    candidates = [facility.index for facility in candidateForest.getTrees().values()]
+                    reward = (Util.truncate(float(candidateForest.getTreesCount()/self.facilitiesCount),3))*self.ASSIGNMENT_REWARD
+                    self.__updateFrequency(candidates,reward)
 
         if(self.DEBUG_MESSAGES):
             print("Evaluate Method Finished...")
