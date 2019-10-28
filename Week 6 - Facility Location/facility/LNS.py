@@ -10,8 +10,8 @@ class LNS:
     EPS = 1.e-6
     DEBUG_MESSAGES = False
     ASSIGNMENT_REWARD = 1
-
-    def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas,quantiles):
+    
+    def __init__(self,initialSolutionArray,facilities,customers,improvementType,clusterAreas,quantiles,mipTimeLimit):
         self.facilities = facilities
         self.customers = customers
         self.currentSolutionForest = Forest()
@@ -23,6 +23,7 @@ class LNS:
         self.facilitiesAssignmentFrequency = [1]*len(facilities)
         self.facilitiesCount = len(facilities)
         self.quantiles = []
+        self.mipTimelimit = mipTimeLimit
 
     def __getQuantiles(self):
         firstQuantile = Util.truncate(1.0/float(len(self.clusterAreas)),10) 
@@ -118,7 +119,7 @@ class LNS:
         self.mip.clear()
         self.mip.initialize(candidatesFacility,candidatesCustomer,"Instance_%s_%s" %(len(candidatesFacility),len(candidatesCustomer)))
         self.mip.createModel()
-        obj,assignments = self.mip.optimize()
+        obj,assignments = self.mip.optimize(self.mipTimelimit)
 
         if(self.DEBUG_MESSAGES):
             print("Repair Method Finished...")

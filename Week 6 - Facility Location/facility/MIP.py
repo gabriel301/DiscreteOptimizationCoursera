@@ -3,7 +3,7 @@ import math
 from Preprocessing import Preprocessing
 
 class MIP:
-    DEBUG_MESSAGES = False
+    DEBUG_MESSAGES = True
 
     def __init__(self, f, c, instanceName): 
         self.initialize(f,c,instanceName)
@@ -54,11 +54,14 @@ class MIP:
         self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(Preprocessing.length(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
         self.model.data = self.varFacilityAssignment, self.varCustomerAssignment
 
-    def optimize(self):
+    def optimize(self,timeLimit):
         print("Instace: %s" % self.instanceName)
 
         if not self.DEBUG_MESSAGES:
             self.model.hideOutput()
+        
+        self.model.setRealParam('limits/time', timeLimit)
+
         print("MIP - Optimizing...")
         self.model.optimize()
         print("Instace: %s solved." % self.instanceName)

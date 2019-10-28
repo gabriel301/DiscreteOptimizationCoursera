@@ -25,6 +25,7 @@ class ParametersConfiguration:
             quantile = Util.truncate(quantile + firstQuantile,10)
             if(quantile > 1.0):
                 break
+            
         result = [interval for interval in intervals if interval > 0 ]    
 
         return result
@@ -50,6 +51,7 @@ class ParametersConfiguration:
         self.params["improvementType"] = ImprovementType.Best
         self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,30,0) #4 hours and 30 minutes of time limit
         self.params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
+        self.params["mipTimeLimit"] = Util.getTimeInSeconds(0,15,0) #30 limits for each Mip Execution
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
