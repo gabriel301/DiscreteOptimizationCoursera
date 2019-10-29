@@ -1,5 +1,7 @@
 from Util import Util
 from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction
+import time
+import datetime
 
 class ParametersConfiguration:
     INITIAL_FACILITIES_BY_SUBPROBLEM = 10  #Maximum desired number of facilities 'in' the first cluster
@@ -49,9 +51,9 @@ class ParametersConfiguration:
     def __DefaultSetup(self,instanceSize):
         self.params = {}
         self.params["improvementType"] = ImprovementType.First
-        self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,30,0) #4 hours and 30 minutes of time limit
+        self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,50,0) #4 hours and 30 minutes of time limit
         self.params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
-        self.params["mipTimeLimit"] = Util.getTimeInSeconds(0,30,0) #30 limits for each Mip Execution
+        self.params["mipTimeLimit"] = Util.getTimeInSeconds(1,0,0) #30 limits for each Mip Execution
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
