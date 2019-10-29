@@ -57,7 +57,7 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
-        self.params["initialSolutionFunction"] = InitialSolutionFunction.Euclidean
+        self.params["initialSolutionFunction"] = InitialSolutionFunction.Radius
 
     def __AlphaSetup(self,instanceSize):
         self.__DefaultSetup(instanceSize)

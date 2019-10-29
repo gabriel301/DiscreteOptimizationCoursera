@@ -78,33 +78,30 @@ class Preprocessing:
         customersToBeAssigned = {}
         customersAssigned = []
         assigments = []
-        clusterCapacity = [0]*len(clusters)
+        facilityCapacity = dict((facility.index,facility.capacity) for facility in facilities.values())
+        facilitiesArray  = [facility for facility in facilities.values()]
 
         for customer in customers:
             customersToBeAssigned[customer.index] = customer.index
-        
-        for key in clusters.keys():
-            for facility in clusters.get(key):
-                clusterCapacity[key] =  clusterCapacity[key] + facilities[facility].capacity
 
         quantileIntervalSize = len(facilities[0].distance_quantiles)
         quantileIntervalCount = 0
         factor = 1.00
         additional = 0.05
+        facilitiesArray.sort(key=lambda x: x.cost_per_capacity, reverse=True)
         while (len(customersToBeAssigned) > 0):
-            for cluster in clusters.keys():
-                for facilityIndex in clusters.get(cluster):
-                    for customerIndex in customersToBeAssigned.keys():
-                        if(Util.isInsideCircle(facilities[facilityIndex].location,facilities[facilityIndex].distance_quantiles[quantileIntervalCount]*factor,customers[customerIndex].location)):
-                            if(clusterCapacity[cluster] > customers[customerIndex].demand):
-                                assigments.append((facilityIndex,customerIndex))
-                                customersAssigned.append(customerIndex)
-                                clusterCapacity[cluster]  = clusterCapacity[cluster] - customers[customerIndex].demand
+            for facility in facilitiesArray:
+                for customerIndex in customersToBeAssigned.keys():
+                    if(Util.isInsideCircle(facility.location,facility.distance_quantiles[quantileIntervalCount]*factor,customers[customerIndex].location)):
+                        if(facilityCapacity[facility.index] > customers[customerIndex].demand):
+                            assigments.append((facility.index,customerIndex))
+                            customersAssigned.append(customerIndex)
+                            facilityCapacity[facility.index]  = facilityCapacity[facility.index]  - customers[customerIndex].demand
 
-                    for customerIndex in customersAssigned:
-                        customersToBeAssigned.pop(customerIndex,None)
+                for customerIndex in customersAssigned:
+                    customersToBeAssigned.pop(customerIndex,None)
 
-                    customersAssigned.clear()
+                customersAssigned.clear()
 
             if(quantileIntervalCount+1 < quantileIntervalSize):
                 quantileIntervalCount = quantileIntervalCount + 1

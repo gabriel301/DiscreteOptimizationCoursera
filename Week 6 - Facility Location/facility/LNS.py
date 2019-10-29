@@ -16,7 +16,7 @@ class LNS:
     DEBUG_MESSAGES = False
     ASSIGNMENT_REWARD = 1
     INITIAL_REWARD = 1
-    NO_ASSIGNMENT_REWARD = 0.5
+    NO_ASSIGNMENT_REWARD = 0.25
     MAX_PROBLEM_SIZE = 90000
     
     def __init__(self,facilities,customers,params):
@@ -298,7 +298,7 @@ class LNS:
                     candidateForest = self.__destroy(cluster)
                     if(candidateForest.getTreesCount()*candidateForest.getTotalNodes() > self.MAX_PROBLEM_SIZE):
                         print("Problem instance is larger than limit. Skipping...")
-                        candidateFacilities = [tree.getRoot() for tree in candidateForest.getTrees()]
+                        candidateFacilities = [tree.getRoot() for tree in candidateForest.getTrees().values()]
                         self.__updateFrequency(dict([(facility.index,facility) for facility in candidateFacilities]),self.ASSIGNMENT_REWARD)
                         continue
 
@@ -331,11 +331,11 @@ class LNS:
                     print(partial)
 
             if(self.currentObjectiveFunction >= self.subproblemSolutionForest.getTotalCost() ):
-                self.currentObjectiveFunction.currentObjective = self.subproblemSolutionForest.getTotalCost()
+                self.currentObjectiveFunction = self.subproblemSolutionForest.getTotalCost()
                 self.currentSolutionAssignment = self.subproblemSolutionForest.getAssignmentsArray()
             
             print("====================================================")
-            print("CURRENT OBJECTIVE FUNCTION: %s"%currentObjective)
+            print("CURRENT OBJECTIVE FUNCTION: %s"%self.currentObjectiveFunction)
             print("====================================================")
             if(quantilesCount >= quantileSize):
                 break
@@ -354,5 +354,5 @@ class LNS:
             self.__InitializeProblem(facilitySubet,customerSubset)
             self.__getQuantiles()
 
-        return currentObjective,currentSolution
+        return self.currentObjectiveFunction,self.currentSolutionAssignment
 
