@@ -56,20 +56,13 @@ def solve_it(input_data):
     if(params["paradigm"] == SolvingParadigm.MIP):
         instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
         instance.createModel()
-        obj,assignments = instance.optimize(params["mipTimeLimit"])
+        obj,assignments,_ = instance.optimize(params["mipTimeLimit"])
         output_data = '%.2f' % obj + ' ' + str(1) + '\n'
         output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))
     
     elif (params["paradigm"] == SolvingParadigm.Hybrid):
-        
-        Preprocessing.getDistanceQuantiles(facilities,params["quantile_intervals"])
-        clusterAreas = Preprocessing.getClusters(facilities,params["quantile_intervals"])
-        if(params["initialSolutionFunction"] == InitialSolutionFunction.Radius):
-            initialSolution = Preprocessing.getRadiusDistanceInitialSolution(facilities,customers,clusterAreas.get(0))
-        else:
-            initialSolution = Preprocessing.getNearestNeighbourInitialSolution(facilities,customers,params["initialSolutionFunction"])
-           
-        search = LNS(Util.formatSolutionFromMIP(initialSolution),facilities,customers,params["improvementType"],clusterAreas,params["quantile_intervals"],params["mipTimeLimit"])
+         
+        search = LNS(facilities,customers,params)
         obj,assignments = search.optimize()
         output_data = '%.2f' % obj + ' ' + str(0) + '\n'
         output_data += ' '.join(map(str,assignments))

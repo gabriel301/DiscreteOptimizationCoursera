@@ -3,7 +3,7 @@ import math
 from Preprocessing import Preprocessing
 
 class MIP:
-    DEBUG_MESSAGES = True
+    DEBUG_MESSAGES = False
 
     def __init__(self, f, c, instanceName): 
         self.initialize(f,c,instanceName)

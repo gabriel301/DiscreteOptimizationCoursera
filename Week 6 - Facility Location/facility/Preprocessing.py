@@ -14,10 +14,10 @@ class Preprocessing:
     #Return quantiles for distances between facilities
     @staticmethod   
     def getDistanceQuantiles(facilities,intervals):
-        print("Genarating Quantiles...")
-        for f1 in facilities:
+        print("Genarating Distance Quantiles...")
+        for f1 in facilities.values():
             distances = []
-            for f2 in facilities:
+            for f2 in facilities.values():
                 if f1.index == f2.index:
                     continue
                 distances.append(Preprocessing.getEuclideanDistance(f1.location,f2.location))
@@ -29,11 +29,12 @@ class Preprocessing:
         print("Genarating %s Clusters..."%numberClusters)
         clusters = {}
         dataPoints = np.array([[facility.location.x,facility.location.y] for facility in facilities])
+        indexes = [facility.index for facility in facilities]
         kmeans = MiniBatchKMeans(n_clusters=numberClusters, random_state=0,tol=1.e-6).fit(dataPoints)
-        for facility in facilities:
-            if kmeans.labels_[facility.index] not in clusters.keys():
-                clusters[kmeans.labels_[facility.index]] = []
-            clusters.get(kmeans.labels_[facility.index]).append(facility.index)
+        for i in range(0,len(indexes)):
+            if kmeans.labels_[i]not in clusters.keys():
+                clusters[kmeans.labels_[i]] = []
+            clusters.get(kmeans.labels_[i]).append(indexes[i])
         
         return clusters
 
@@ -118,7 +119,7 @@ class Preprocessing:
         customersToBeAssigned = {}
         assigments = []
         customersAssigned = []
-        remainingCapacity = [facility.capacity for facility in facilities]
+        remainingCapacity = dict([(facility.index,facility.capacity) for facility in facilities.values()]) 
         for customer in customers:
             customersToBeAssigned[customer.index] = customer.index
 
@@ -126,7 +127,7 @@ class Preprocessing:
             for customerIndex in customersToBeAssigned.keys():
                 minDistanceIndex = -1
                 currMinDistance = float("inf")
-                for facility in facilities:
+                for facility in facilities.values():
                     if(distanceType == InitialSolutionFunction.Manhatan):
                         currDistance = Preprocessing.getManhatanDistance(facility.location,customers[customerIndex].location)
                     else:
@@ -156,7 +157,7 @@ class Preprocessing:
         clusterSizes = []
         for index in range(0,len(quantileIntervals)):
             numberClusters = round(size/(quantileIntervals[index]*size))
-            if (numberClusters == lastClusterSize):
+            if (numberClusters == lastClusterSize or numberClusters > size):
                 continue
             lastClusterSize = numberClusters
             clusterSizes.append(numberClusters)
