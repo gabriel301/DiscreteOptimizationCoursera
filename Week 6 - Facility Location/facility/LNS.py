@@ -281,6 +281,7 @@ class LNS:
         quantileSize = len(initialQuantiles)
         quantilesCount = 0
         customerCount = len(self.customers)
+        noImprovementIterations = 0
         while True:
             if(clock.isTimeOver(time.time(),self.params["executionTimeLimit"])):
                 break
@@ -332,7 +333,13 @@ class LNS:
             if(self.currentObjectiveFunction >= self.subproblemSolutionForest.getTotalCost() ):
                 self.currentObjectiveFunction = self.subproblemSolutionForest.getTotalCost()
                 self.currentSolutionAssignment = self.subproblemSolutionForest.getAssignmentsArray()
-            
+            else:
+                noImprovementIterations = noImprovementIterations + 1
+
+            if(noImprovements > self.params["noImprovementIterationLimit"]):
+                print("No improvement limit reached! Stopping the search...")
+                break
+                
             print("====================================================")
             print("CURRENT OBJECTIVE FUNCTION: %s"%self.currentObjectiveFunction)
             print("====================================================")

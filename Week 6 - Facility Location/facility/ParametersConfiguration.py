@@ -52,7 +52,7 @@ class ParametersConfiguration:
         self.params = {}
         self.params["improvementType"] = ImprovementType.First
         self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,50,0) #4 hours and 30 minutes of time limit
-        self.params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
+        self.params["noImprovementIterationLimit"] = 2
         self.params["mipTimeLimit"] = Util.getTimeInSeconds(4,0,0) 
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
