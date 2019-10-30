@@ -4,7 +4,7 @@ import time
 import datetime
 
 class ParametersConfiguration:
-    INITIAL_FACILITIES_BY_SUBPROBLEM = 10  #Maximum desired number of facilities 'in' the first cluster
+    INITIAL_FACILITIES_BY_SUBPROBLEM = 5  #Maximum desired number of facilities 'in' the first cluster
    
     def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize

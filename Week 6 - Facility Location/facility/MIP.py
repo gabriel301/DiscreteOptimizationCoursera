@@ -7,7 +7,7 @@ from docplex.util.status import JobSolveStatus
 
 
 class MIP:
-    DEBUG_MESSAGES = True
+    DEBUG_MESSAGES = False
 
     def __init__(self, f, c, instanceName,mipSolver): 
         self.initialize(f,c,instanceName,mipSolver)
@@ -102,7 +102,7 @@ class MIP:
 
     def __optimizeCPLEX(self,timeLimit):
         print("Instace: %s" % self.instanceName)
-        if not self.DEBUG_MESSAGES:
+        if self.DEBUG_MESSAGES:
             self.model.print_information()
         
         self.model.parameters.timelimit = timeLimit

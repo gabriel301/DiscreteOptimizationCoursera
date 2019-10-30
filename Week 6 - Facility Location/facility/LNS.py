@@ -15,9 +15,9 @@ class LNS:
     EPS = 1.e-10
     DEBUG_MESSAGES = False
     ASSIGNMENT_REWARD = 1
-    INITIAL_REWARD = 1
+    INITIAL_REWARD = 0.5
     NO_ASSIGNMENT_REWARD = 0.25
-    MAX_PROBLEM_SIZE = 90000
+    MAX_PROBLEM_SIZE = 25000
     
     def __init__(self,facilities,customers,params):
         self.facilities = dict(zip([facility.index for facility in facilities], [facility for facility in facilities]))
@@ -298,7 +298,7 @@ class LNS:
                     if(candidateForest.getTreesCount()*candidateForest.getTotalNodes() > self.MAX_PROBLEM_SIZE):
                         print("Problem instance is larger than limit. Skipping...")
                         candidateFacilities = [tree.getRoot() for tree in candidateForest.getTrees().values()]
-                        self.__updateFrequency(dict([(facility.index,facility) for facility in candidateFacilities]),self.ASSIGNMENT_REWARD)
+                        self.__updateFrequency(dict([(facility.index,facility) for facility in candidateFacilities]),self.NO_ASSIGNMENT_REWARD)
                         continue
 
                     cFacilities,cCustomers = candidateForest.getData()
