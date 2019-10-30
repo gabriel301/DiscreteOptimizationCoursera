@@ -54,8 +54,7 @@ def solve_it(input_data):
     print("Instace Size: %s || Strategy: %s || Paradigm: %s || Improvement Type: %s" % (paramsConfig.instanceSize,params["strategy"],params["paradigm"],params["improvementType"]))
     print("============================================================================================================================================================")
     if(params["paradigm"] == SolvingParadigm.MIP):
-        instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count))
-        instance.createModel()
+        instance = MIP(facilities,customers,"Instance_%s_%s" %(facility_count,customer_count),params["mipSolver"])
         obj,assignments,_ = instance.optimize(params["mipTimeLimit"])
         output_data = '%.2f' % obj + ' ' + str(1) + '\n'
         output_data += ' '.join(map(str,Util.formatSolutionFromMIP(assignments)))

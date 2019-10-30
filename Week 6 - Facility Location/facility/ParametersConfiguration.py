@@ -1,5 +1,5 @@
 from Util import Util
-from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction
+from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction,MipSolver
 import time
 import datetime
 
@@ -53,11 +53,12 @@ class ParametersConfiguration:
         self.params["improvementType"] = ImprovementType.First
         self.params["executionTimeLimit"] = Util.getTimeInSeconds(4,50,0) #4 hours and 30 minutes of time limit
         self.params["noImprovementTimeLimit"] = Util.getTimeInSeconds(0,20,0)
-        self.params["mipTimeLimit"] = Util.getTimeInSeconds(1,0,0) #30 limits for each Mip Execution
+        self.params["mipTimeLimit"] = Util.getTimeInSeconds(4,0,0) 
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
-        self.params["initialSolutionFunction"] = InitialSolutionFunction.Radius
+        self.params["initialSolutionFunction"] = InitialSolutionFunction.Euclidean
+        self.params["mipSolver"] = MipSolver.CPLEX
 
     def __AlphaSetup(self,instanceSize):
         self.__DefaultSetup(instanceSize)

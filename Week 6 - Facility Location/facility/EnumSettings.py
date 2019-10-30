@@ -26,3 +26,7 @@ class InitialSolutionFunction(Enum):
     Radius = "Radius"
     Euclidean = "Euclidean"
     Manhatan = "Manhatan"
+
+class MipSolver(Enum):
+    SCIP = "SCIP"
+    CPLEX = "CPLEX"

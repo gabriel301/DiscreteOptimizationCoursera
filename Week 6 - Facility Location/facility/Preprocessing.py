@@ -84,7 +84,7 @@ class Preprocessing:
         for customer in customers:
             customersToBeAssigned[customer.index] = customer.index
 
-        quantileIntervalSize = len(facilities[0].distance_quantiles)
+        quantileIntervalSize = len(list(facilities.values())[0].distance_quantiles)
         quantileIntervalCount = 0
         factor = 1.00
         additional = 0.05

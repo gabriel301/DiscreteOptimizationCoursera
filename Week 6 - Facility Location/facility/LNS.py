@@ -1,7 +1,7 @@
 from Forest import Forest
 from Util import Util
 from MIP import MIP
-from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction
+from EnumSettings import Strategy,ImprovementType,SolvingParadigm,InitialSolutionFunction,MipSolver
 from Preprocessing import Preprocessing
 from Tree import Tree
 import math
@@ -24,7 +24,7 @@ class LNS:
         self.customers = customers
         self.subproblemSolutionForest = Forest()
         self.currentIteration = 0
-        self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)))
+        self.mip = MIP(facilities,customers,"Instance_%s_%s" %(len(facilities),len(customers)),params["mipSolver"])
         self.facilitiesCount = len(facilities)
         self.quantiles = []
         self.params = params
@@ -109,8 +109,8 @@ class LNS:
                 for node in self.subproblemSolutionForest.getTrees().get(facilityIndex).getNodes().values():
                     clusterDemand = clusterDemand + node.demand
 
-        candidateFacilities = self.__getCandidateFacilities(cluster,clusterDemand,Util.truncate(self.quantiles[self.currentIteration],5))
-
+        #candidateFacilities = self.__getCandidateFacilities(cluster,clusterDemand,Util.truncate(self.quantiles[self.currentIteration],5))
+        candidateFacilities = copy.deepcopy(cluster)
         print("Current Forest: %s/%s - Candidate Facilities: %s/%s"%(self.subproblemSolutionForest.getTreesCount(),self.subproblemSolutionForest.getTotalNodes(),len(candidateFacilities),len(cluster)))
        
         reassignmentCandidates = Forest()
@@ -138,8 +138,7 @@ class LNS:
             print("=============================")
             print("Repair Method Started...")
         self.mip.clear()
-        self.mip.initialize(candidatesFacility,candidatesCustomer,"Instance_%s_%s" %(len(candidatesFacility),len(candidatesCustomer)))
-        self.mip.createModel()
+        self.mip.initialize(candidatesFacility,candidatesCustomer,"Instance_%s_%s" %(len(candidatesFacility),len(candidatesCustomer)),self.params["mipSolver"])
         obj,assignments,status = self.mip.optimize(self.params["mipTimeLimit"])
 
         if(self.DEBUG_MESSAGES):
