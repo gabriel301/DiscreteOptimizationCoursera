@@ -40,8 +40,10 @@ class ParametersConfiguration:
                 self.__getInstanceParameters(Strategy.Alpha,instanceSize)
             elif(instanceSize <= 100000):
                 self.__getInstanceParameters(Strategy.Beta,instanceSize)
-            else:
+            elif (instanceSize <=500000):
                 self.__getInstanceParameters(Strategy.Delta,instanceSize)
+            else:
+                self.__getInstanceParameters(Strategy.Epsilon,instanceSize)
 
     def __getInstanceParameters(self,strategy,instanceSize):  
         if strategy == Strategy.Alpha:
@@ -50,6 +52,8 @@ class ParametersConfiguration:
             self.__BetaSetup(instanceSize)
         elif strategy == Strategy.Delta:
             self.__DeltaSetup(instanceSize)
+        elif strategy == Strategy.Epsilon:
+            self.__EpsilonSetup(instanceSize)
     
     def __DefaultSetup(self,instanceSize):
         self.params = {}
@@ -75,6 +79,7 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Beta
         self.params["paradigm"] = SolvingParadigm.Hybrid
         self.params["improvementType"] = ImprovementType.First
+        self.params["initial_facilities_subproblem"] = 5
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
     
     def __DeltaSetup(self,instanceSize):
@@ -82,6 +87,14 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Delta
         self.params["paradigm"] = SolvingParadigm.Hybrid
         self.params["improvementType"] = ImprovementType.First
-        self.params["initial_facilities_subproblem"] = 7
+        self.params["initial_facilities_subproblem"] = 10
+        self.params["quantile_intervals"] = self.__getQuantilesIntervals()
+
+    def __EpsilonSetup(self,instanceSize):
+        self.__DefaultSetup(instanceSize)
+        self.params["strategy"] = Strategy.Epsilon
+        self.params["paradigm"] = SolvingParadigm.Hybrid
+        self.params["improvementType"] = ImprovementType.First
+        self.params["initial_facilities_subproblem"] = 5
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
 
