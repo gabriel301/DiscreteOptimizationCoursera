@@ -39,7 +39,7 @@ class MIP:
 
     def __createModelSCIP(self):
         self.model = Model(self.instanceName)
-        print("Creating Variables...")
+        print("SCIP - Creating Variables...")
         #Variables
         for f in self.facilities:
             self.varFacilityAssignment[f.index] = self.model.addVar(vtype="B",name="facility-%s" % f.index)
@@ -47,7 +47,7 @@ class MIP:
                 #Demand is binary because each customer must be served by exaclty one facility
                 self.varCustomerAssignment[f.index,c.index] = self.model.addVar(vtype="B",name="demand-(%s,%s)" % (f.index,c.index))
 
-        print("Creating Constraints...")
+        print("SCIP - Creating Constraints...")
         #Constraints
         #Ensure all customers are assigned to one facility
         for customer in self.customers:
@@ -63,14 +63,14 @@ class MIP:
                 self.model.addCons(self.varCustomerAssignment[facility.index,customer.index] <=  facility.capacity*self.varFacilityAssignment[facility.index],"Strong(%s,%s)"%(facility.index,customer.index))
                 self.model.addCons(self.varCustomerAssignment[facility.index,customer.index] >= 0 )
         
-        print("Creating Objective Function...")
+        print("SCIP - Creating Objective Function...")
         #Objective Function
         self.model.setObjective(quicksum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + quicksum(Preprocessing.getEuclideanDistance(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers),"minimize")
         self.model.data = self.varFacilityAssignment, self.varCustomerAssignment
 
     def __createModelCPLEX(self):
         self.model = cpx.Model(self.instanceName)
-        print("Creating Variables...")
+        print("CPLEX - Creating Variables...")
         #Variables
         for f in self.facilities:
             self.varFacilityAssignment[f.index] = self.model.binary_var(name="facility-%s" % f.index)
@@ -78,7 +78,7 @@ class MIP:
                 #Demand is binary because each customer must be served by exaclty one facility
                 self.varCustomerAssignment[f.index,c.index] = self.model.binary_var(name="demand-(%s,%s)" % (f.index,c.index))
 
-        print("Creating Constraints...")
+        print("CPLEX - Creating Constraints...")
         #Constraints
         #Ensure all customers are assigned to one facility
         for customer in self.customers:
@@ -94,7 +94,7 @@ class MIP:
                 self.model.add_constraint(ct=self.varCustomerAssignment[facility.index,customer.index] <=  facility.capacity*self.varFacilityAssignment[facility.index],ctname="Strong(%s,%s)"%(facility.index,customer.index))
                 self.model.add_constraint(self.varCustomerAssignment[facility.index,customer.index] >= 0,ctname="Strong2(%s,%s)"%(facility.index,customer.index))
     
-        print("Creating Objective Function...")
+        print("CLPEX - Creating Objective Function...")
         #Objective Function
         objective = self.model.sum(self.varFacilityAssignment[facility.index]*facility.setup_cost for facility in self.facilities) + self.model.sum(Preprocessing.getEuclideanDistance(facility.location,customer.location)*self.varCustomerAssignment[facility.index,customer.index] for facility in self.facilities for customer in self.customers)
         self.model.minimize(objective)
@@ -108,7 +108,7 @@ class MIP:
         self.model.parameters.timelimit = timeLimit
         self.model.parameters.threads = 8
 
-        print("MIP - Optimizing...")
+        print("CPLEX - Optimizing...")
         solution = self.model.solve(log_output=self.DEBUG_MESSAGES)
 
         if solution is not None:
@@ -138,7 +138,7 @@ class MIP:
         
         self.model.setRealParam('limits/time', timeLimit)
 
-        print("MIP - Optimizing...")
+        print("SCIP - Optimizing...")
         self.model.optimize()
         print("Instace: %s solved." % self.instanceName)
         EPS = 1.e-6

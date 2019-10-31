@@ -4,8 +4,7 @@ import time
 import datetime
 
 class ParametersConfiguration:
-    INITIAL_FACILITIES_BY_SUBPROBLEM = 5  #Maximum desired number of facilities 'in' the first cluster
-   
+    
     def __init__(self,facilityCount,instanceSize):
         self.instanceSize = instanceSize
         self.facilityCount = facilityCount
@@ -14,7 +13,7 @@ class ParametersConfiguration:
         
 
     def __getQuantilesIntervals(self):
-        firstQuantile = Util.truncate(self.INITIAL_FACILITIES_BY_SUBPROBLEM/float(self.facilityCount),10) 
+        firstQuantile = Util.truncate(self.params["initial_facilities_subproblem"]/float(self.facilityCount),10) 
         if(firstQuantile > 1.0):
             firstQuantile = 1
         quantileIntervals = round(1.0/firstQuantile)
@@ -39,14 +38,18 @@ class ParametersConfiguration:
         if(self.params is None): 
             if (instanceSize <= 50000): 
                 self.__getInstanceParameters(Strategy.Alpha,instanceSize)
-            else:
+            elif(instanceSize <= 100000):
                 self.__getInstanceParameters(Strategy.Beta,instanceSize)
+            else:
+                self.__getInstanceParameters(Strategy.Delta,instanceSize)
 
     def __getInstanceParameters(self,strategy,instanceSize):  
         if strategy == Strategy.Alpha:
             self.__AlphaSetup(instanceSize)
         elif strategy == Strategy.Beta:
             self.__BetaSetup(instanceSize)
+        elif strategy == Strategy.Delta:
+            self.__DeltaSetup(instanceSize)
     
     def __DefaultSetup(self,instanceSize):
         self.params = {}
@@ -56,18 +59,29 @@ class ParametersConfiguration:
         self.params["mipTimeLimit"] = Util.getTimeInSeconds(4,0,0) 
         self.params["strategy"] = Strategy.Default
         self.params["paradigm"] = SolvingParadigm.MIP
-        self.params["quantile_intervals"] = self.__getQuantilesIntervals()
+        self.params["initial_facilities_subproblem"] = 5 #Maximum desired number of facilities 'in' the first cluster
         self.params["initialSolutionFunction"] = InitialSolutionFunction.Euclidean
         self.params["mipSolver"] = MipSolver.CPLEX
+        
 
     def __AlphaSetup(self,instanceSize):
         self.__DefaultSetup(instanceSize)
         self.params["strategy"] = Strategy.Alpha
         self.params["paradigm"] = SolvingParadigm.MIP
+        self.params["quantile_intervals"] = self.__getQuantilesIntervals()
         
     def __BetaSetup(self,instanceSize):
         self.__DefaultSetup(instanceSize)
         self.params["strategy"] = Strategy.Beta
         self.params["paradigm"] = SolvingParadigm.Hybrid
         self.params["improvementType"] = ImprovementType.First
+        self.params["quantile_intervals"] = self.__getQuantilesIntervals()
+    
+    def __DeltaSetup(self,instanceSize):
+        self.__DefaultSetup(instanceSize)
+        self.params["strategy"] = Strategy.Delta
+        self.params["paradigm"] = SolvingParadigm.Hybrid
+        self.params["improvementType"] = ImprovementType.First
+        self.params["initial_facilities_subproblem"] = 10
+        self.params["quantile_intervals"] = self.__getQuantilesIntervals()
 

@@ -341,12 +341,10 @@ class LNS:
             print("====================================================")
             if(quantilesCount >= quantileSize):
                 print("Maximum Iteration Count Reached! Stopping...")
-                input("...")
                 break
 
             if(noImprovementIterations > self.params["noImprovementIterationLimit"]):
                 print("No improvement limit reached! Stopping the search...")
-                input("...")
                 break
                 
             ##filtrar as facilities mais interessantes e jogar no facility subset
