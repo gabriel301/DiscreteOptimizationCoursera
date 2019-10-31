@@ -336,15 +336,19 @@ class LNS:
             else:
                 noImprovementIterations = noImprovementIterations + 1
 
-            if(noImprovements > self.params["noImprovementIterationLimit"]):
-                print("No improvement limit reached! Stopping the search...")
-                break
-                
             print("====================================================")
             print("CURRENT OBJECTIVE FUNCTION: %s"%self.currentObjectiveFunction)
             print("====================================================")
             if(quantilesCount >= quantileSize):
+                print("Maximum Iteration Count Reached! Stopping...")
+                input("...")
                 break
+
+            if(noImprovementIterations > self.params["noImprovementIterationLimit"]):
+                print("No improvement limit reached! Stopping the search...")
+                input("...")
+                break
+                
             ##filtrar as facilities mais interessantes e jogar no facility subset
             candidates = [ facility.index for facility in facilitySubet.values()]
             lastCandidateCount = len(candidates)
