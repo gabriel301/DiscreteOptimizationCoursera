@@ -82,6 +82,6 @@ class ParametersConfiguration:
         self.params["strategy"] = Strategy.Delta
         self.params["paradigm"] = SolvingParadigm.Hybrid
         self.params["improvementType"] = ImprovementType.First
-        self.params["initial_facilities_subproblem"] = 10
+        self.params["initial_facilities_subproblem"] = 7
         self.params["quantile_intervals"] = self.__getQuantilesIntervals()
 
